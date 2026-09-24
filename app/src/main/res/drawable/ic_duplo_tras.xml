@@ -1,0 +1,11 @@
+<!-- ◀◀ — voltar, no aviso do toque duplo. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24"
+    android:tint="#FFFFFF">
+    <path android:fillColor="@android:color/white"
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="1.6"
+        android:strokeLineJoin="round"
+        android:pathData="M20.5,7 L20.5,17 L12.5,12 Z M11.5,7 L11.5,17 L3.5,12 Z"/>
+</vector>
