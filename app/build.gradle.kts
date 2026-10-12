@@ -117,10 +117,10 @@ android {
         }
     }
 
-    // A assinatura mora no repositório de propósito.
+    // A chave fica em keystore/viper.jks, fora do git (o repositório é
+    // público); o CI a recebe pelo secret ANDROID_KEYSTORE_BASE64.
     //
-    // Não é segredo de app de loja: é um app pessoal instalado à mão, e o que
-    // importa aqui é a assinatura ser SEMPRE A MESMA. Android recusa atualizar
+    // O que importa aqui é a assinatura ser SEMPRE A MESMA. Android recusa atualizar
     // um app cuja assinatura mudou — com chave gerada a cada build, toda nova
     // versão exigiria desinstalar a anterior e perder o histórico.
     signingConfigs {

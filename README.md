@@ -1,4 +1,7 @@
-# LibertyX Player — Android
+# LibertyX Player — Android e TV
+
+**Baixar (TV):** [LibertyXPlayer-TV.apk](https://github.com/fxmx182/libertyx-player-android/releases/latest/download/LibertyXPlayer-TV.apk)
+· [todos os APKs](https://github.com/fxmx182/libertyx-player-android/releases/latest)
 
 O mesmo player do iPhone, do outro lado. Mesmo nome, mesmos
 gestos, mesmo motor de vídeo — escrito de novo em Kotlin porque não há uma
@@ -246,7 +249,7 @@ Precisa de JDK 17 e do SDK do Android. Nada mais — nem Android Studio.
 ./gradlew assembleRelease
 ```
 
-Os APKs prontos ficam em **`Android/dist/`**, com nome de aparelho:
+Os APKs prontos ficam em **`dist/`**, com nome de aparelho:
 
 | Arquivo | Para quê | Tamanho |
 |---|---|---|
@@ -328,7 +331,7 @@ cada build**, etiquetado com a data e o commit. O mais recente é marcado como
 "latest", o que dá uma URL que nunca muda:
 
 ```bash
-curl -L -O https://github.com/fxmx182/LabPlayer/releases/latest/download/LibertyXPlayer-TV.apk
+curl -L -O https://github.com/fxmx182/libertyx-player-android/releases/latest/download/LibertyXPlayer-TV.apk
 ```
 
 Assim existem as duas coisas: histórico para voltar à versão de ontem, e um
@@ -431,3 +434,13 @@ tornam isso possível, e nenhuma decide o que aparece ou o que toca:
   a pasta abre igual, só sem esses dois campos. Em sessão de convidado ele
   quebra no SMB 3 (não há chave de sessão para derivar as de assinatura), então
   convidado conversa em SMB 2.1.
+
+## Família LibertyX
+
+| App | Repositório |
+|---|---|
+| LibertyX Player — iPhone | [libertyx-player-ios](https://github.com/fxmx182/libertyx-player-ios) |
+| LibertyX Player — Android e TV | [libertyx-player-android](https://github.com/fxmx182/libertyx-player-android) |
+| LibertyX Folder — iPhone | [libertyx-folder-ios](https://github.com/fxmx182/libertyx-folder-ios) |
+| LibertyX Folder — Android e TV | [libertyx-folder-android](https://github.com/fxmx182/libertyx-folder-android) |
+| LibertyX Partition — Windows | [libertyx-partition](https://github.com/fxmx182/libertyx-partition) |

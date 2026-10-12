@@ -3,12 +3,10 @@ name: Build APK
 on:
   push:
     branches: [main]
-    paths:
-      - "Android/**"
-      - ".github/workflows/android.yml"
+    paths-ignore:
+      - "**.md"
+      - "loja/**"
   pull_request:
-    paths:
-      - "Android/**"
   workflow_dispatch:
 
 concurrency:
@@ -24,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: write   # para publicar o release "android-latest"
+      contents: write   # para publicar os releases
 
     steps:
       - uses: actions/checkout@v5
@@ -48,11 +46,21 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ hashFiles('Android/gradle/libs.versions.toml', 'Android/**/*.gradle.kts') }}
+          key: gradle-${{ hashFiles('gradle/libs.versions.toml', '**/*.gradle.kts') }}
           restore-keys: gradle-
 
+      # A chave não mora no repositório, que é público: vem do secret
+      # ANDROID_KEYSTORE_BASE64. É a mesma chave de sempre — o Android só
+      # aceita atualizar um app assinado pela mesma chave que o instalou.
+      - name: Restaurar a chave de assinatura
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$KEYSTORE" || { echo "::error title=Sem chave::falta o secret ANDROID_KEYSTORE_BASE64"; exit 1; }
+          mkdir -p keystore
+          echo "$KEYSTORE" | base64 -d > keystore/viper.jks
+
       - name: Compilar
-        working-directory: Android
         run: |
           set -o pipefail
           chmod +x gradlew
@@ -65,7 +73,6 @@ jobs:
       # falha diagnosticável de fora, sem token de acesso.
       - name: Republicar erros do compilador como anotação
         if: failure()
-        working-directory: Android
         run: |
           python3 - <<'PY'
           import re, pathlib
@@ -93,18 +100,17 @@ jobs:
           PY
 
       # Nada a renomear aqui: a tarefa `publicarApks` do Gradle já deixou os
-      # arquivos em Android/dist/ com nome de aparelho em vez de nome de
+      # arquivos em dist/ com nome de aparelho em vez de nome de
       # arquitetura. Duplicar essa regra no workflow faria as duas versões
       # divergirem no dia em que uma mudasse.
       - name: Conferir os APKs
-        working-directory: Android
         run: ls -lh dist/
 
       - name: Publicar artefato
         uses: actions/upload-artifact@v4
         with:
           name: LibertyXPlayer-apk
-          path: Android/dist/*.apk
+          path: dist/*.apk
           retention-days: 30
           if-no-files-found: error
 
@@ -124,13 +130,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          VERSAO=$(grep -oP 'versionName = "\K[^"]+' Android/app/build.gradle.kts)
+          VERSAO=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
           DATA=$(date -u +%Y.%m.%d)
-          TAG="android-v${VERSAO}-${DATA}-${GITHUB_SHA:0:7}"
+          TAG="v${VERSAO}-${DATA}-${GITHUB_SHA:0:7}"
           ASSUNTO=$(git log -1 --pretty=%s)
-
-          # A tag antiga de "sempre a mesma" sai de cena na primeira vez.
-          gh release delete android-latest --yes --cleanup-tag 2>/dev/null || true
 
           {
             echo "$ASSUNTO"
@@ -164,7 +167,7 @@ jobs:
             git log -1 --pretty=%b
           } > notas.md
 
-          gh release create "$TAG" Android/dist/*.apk \
+          gh release create "$TAG" dist/*.apk \
             --title "LibertyX Player Android — ${DATA} (${GITHUB_SHA:0:7})" \
             --notes-file notas.md \
             --latest
@@ -178,7 +181,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release list --limit 100 --json tagName \
-            --jq '.[] | select(.tagName | startswith("android-v")) | .tagName' \
+            --jq '.[] | select(.tagName | startswith("v")) | .tagName' \
             | tail -n +11 \
             | while read -r tag; do
                 echo "removendo $tag"

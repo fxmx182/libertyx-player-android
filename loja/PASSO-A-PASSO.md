@@ -27,7 +27,9 @@ O que já está pronto no código está marcado ✅. O resto é feito no navegad
   repetidos).
 - ✅ Política de privacidade: [`../PRIVACY.md`](../PRIVACY.md), em inglês,
   português e espanhol. Endereço para a Play:
-  `https://github.com/fxmx182/LabPlayer/blob/main/Android/PRIVACY.md`
+  `https://github.com/fxmx182/libertyx-player-android/blob/main/PRIVACY.md`
+  (o endereço antigo, `…/LabPlayer/blob/main/Android/PRIVACY.md`, segue no ar no
+  repositório arquivado)
 - ✅ Textos da página nos três idiomas: [`FICHA.md`](FICHA.md). Imagens em `imagens/`.
 
 ## Morando no Japão — o que muda

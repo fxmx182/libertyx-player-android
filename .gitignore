@@ -1,0 +1,20 @@
+# Caminho do SDK da máquina, cache do Gradle e os APKs.
+local.properties
+.gradle/
+build/
+app/build/
+.kotlin/
+dist/
+*.apk
+*.aab
+
+# Chaves de assinatura: ficam só na máquina e no secret do CI, nunca no
+# repositório, que é público.
+keystore/
+*.jks
+*.keystore
+
+# macOS / editores
+.DS_Store
+*.swp
+.vscode/
