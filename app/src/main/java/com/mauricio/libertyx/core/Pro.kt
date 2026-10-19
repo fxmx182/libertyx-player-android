@@ -19,6 +19,10 @@ import kotlinx.coroutines.flow.asStateFlow
  * do Android, o que faz reinstalar na mesma conta não recomeçar a contagem —
  * não é à prova de quem insiste, e não precisa ser: o preço é de um lanche.
  *
+ * **Duas formas de comprar.** Na versão da Play, só pela Play (é a regra da loja). No APK do
+ * GitHub ([BuildConfig.CHAVE_LIBERTYX]) também pela chave LibertyX, comprada com Bitcoin ou
+ * USDT no bot do Telegram ([Chave]) — o que serve a quem não tem Play, como o Fire TV.
+ *
  * **Terminado o teste, nada some.** Bloqueia só o que é Pro; a biblioteca, o
  * player, os gestos e a busca quadro a quadro continuam. Um app que se tranca
  * inteiro depois de uma semana converte mais e ganha avaliação de uma
@@ -30,7 +34,7 @@ object Pro {
     enum class Recurso { REDE, SEGUNDO_PLANO, JANELA, DORMIR, CAPTURA }
 
     sealed interface Estado {
-        /** Comprado, ou o APK do dono ([BuildConfig.LIBERADO]). */
+        /** Comprado (pela Play ou com a chave LibertyX), ou o APK do dono ([BuildConfig.LIBERADO]). */
         data object Comprado : Estado
         data class Teste(val diasRestantes: Int) : Estado
         data object Expirado : Estado
@@ -41,6 +45,7 @@ object Pro {
 
     private const val KEY_INICIO = "pro.inicioDoTeste"
     private const val KEY_COMPRADO = "pro.comprado"
+    private const val KEY_CHAVE = "pro.chave"
 
     private lateinit var app: Context
     private val _estado = MutableStateFlow<Estado>(Estado.Expirado)
@@ -73,10 +78,32 @@ object Pro {
         recalcular()
     }
 
+    /**
+     * Ativa o Pro com a chave LibertyX. Guarda a chave inteira, e não um "ativado": a cada
+     * abertura ela é conferida de novo, então editar o arquivo de preferências não libera nada.
+     */
+    fun ativarChave(texto: String): Chave.Resultado {
+        val r = Chave.conferir(texto)
+        if (r is Chave.Resultado.Valida && BuildConfig.CHAVE_LIBERTYX) {
+            Prefs.get(app).edit().putString(KEY_CHAVE, r.texto).apply()
+            recalcular()
+        }
+        return r
+    }
+
+    /** O número da licença ativada, para mostrar nas opções; null sem chave. */
+    val licencaDaChave: String?
+        get() = Prefs.get(app).getString(KEY_CHAVE, null)
+            ?.let { (Chave.conferir(it) as? Chave.Resultado.Valida)?.id }
+
+    private fun temChave(prefs: android.content.SharedPreferences): Boolean =
+        BuildConfig.CHAVE_LIBERTYX && prefs.getString(KEY_CHAVE, null)
+            ?.let { Chave.conferir(it) is Chave.Resultado.Valida } == true
+
     fun recalcular() {
         val prefs = Prefs.get(app)
         _estado.value = when {
-            BuildConfig.LIBERADO || prefs.getBoolean(KEY_COMPRADO, false) -> Estado.Comprado
+            BuildConfig.LIBERADO || prefs.getBoolean(KEY_COMPRADO, false) || temChave(prefs) -> Estado.Comprado
             else -> {
                 val inicio = prefs.getLong(KEY_INICIO, System.currentTimeMillis())
                 // Relógio atrasado não vira dia negativo nem teste maior.

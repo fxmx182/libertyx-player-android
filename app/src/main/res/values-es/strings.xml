@@ -276,4 +276,29 @@
     <string name="licencas_intro">LibertyX está hecho sobre estos proyectos de código abierto. Toca uno para leer su licencia.</string>
     <string name="pro_menu">LibertyX Pro</string>
     <string name="pro_auto_bloqueado">Desbloquea LibertyX Pro en el móvil para usarlo en el coche</string>
+
+    <!-- Chave LibertyX (só no APK do GitHub): compra com Bitcoin/USDT pelo Telegram -->
+    <string name="pro_telegram">Pagar con Bitcoin o USDT</string>
+    <string name="pro_telegram_sub">Por Telegram — la clave llega al instante</string>
+    <string name="pro_telegram_tv">En el móvil, abre %1$s en Telegram para comprar con Bitcoin o USDT.</string>
+    <string name="pro_tenho_chave">Tengo una clave</string>
+    <string name="chave_titulo">Activar con una clave</string>
+    <string name="chave_texto">Pega la clave que el bot de LibertyX te envió por Telegram. Empieza con LXP1.</string>
+    <string name="chave_campo">Clave</string>
+    <string name="chave_colar">Pegar</string>
+    <string name="chave_ativar">Activar</string>
+    <string name="chave_ok">Pro activado con tu clave — ¡gracias!</string>
+    <string name="chave_licenca">Licencia %1$s</string>
+    <string name="chave_erro_formato">Eso no parece una clave completa. Cópiala de nuevo en Telegram y pégala entera.</string>
+    <string name="chave_erro_invalida">Esta clave no es válida. Revisa que la copiaste completa.</string>
+    <string name="chave_erro_outro_app">Esta clave es de otra app LibertyX, no del Player.</string>
+    <string name="chave_erro_versao">Esta clave es de una versión más nueva. Actualiza la app e inténtalo de nuevo.</string>
+    <string name="chave_tv_titulo">Más fácil desde el móvil</string>
+    <string name="chave_tv_texto">En un móvil en la misma red Wi-Fi, abre esta dirección en el navegador y pega la clave allí:</string>
+    <string name="chave_tv_sem_rede">Conecta la TV a la red de casa para activar desde el móvil.</string>
+    <string name="chave_web_titulo">Activar LibertyX Pro</string>
+    <string name="chave_web_texto">Pega la clave que el bot de LibertyX te envió por Telegram. La TV desbloquea Pro en cuanto toques el botón.</string>
+    <string name="chave_web_botao">Activar en la TV</string>
+    <string name="chave_web_ok">¡Listo! Pro está activo en tu TV. Puedes cerrar esta página.</string>
+    <string name="chave_comprar">¿Aún no tienes clave? Cómprala por Telegram</string>
 </resources>

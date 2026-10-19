@@ -42,10 +42,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,15 +64,21 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mauricio.libertyx.BuildConfig
 import com.mauricio.libertyx.R
+import com.mauricio.libertyx.core.AtivacaoNaRede
+import com.mauricio.libertyx.core.Chave
 import com.mauricio.libertyx.core.Device
 import com.mauricio.libertyx.core.LabTheme
 import com.mauricio.libertyx.core.LibertyXTheme
@@ -95,10 +105,16 @@ class ProActivity : ComponentActivity() {
             LibertyXTheme {
                 Surface(color = LabTheme.background, modifier = Modifier.fillMaxSize()) {
                     var licencas by rememberSaveable { mutableStateOf(abrirLicencas) }
+                    var chave by rememberSaveable { mutableStateOf(false) }
                     BackHandler(enabled = licencas && !abrirLicencas) { licencas = false }
-                    AnimatedContent(licencas, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "pro") { naLista ->
-                        if (naLista) TelaDeLicencas(onVoltar = { if (abrirLicencas) finish() else licencas = false })
-                        else TelaDoPro(pedido, onFechar = ::finish, onLicencas = { licencas = true })
+                    BackHandler(enabled = chave) { chave = false }
+                    val tela = when { licencas -> 1; chave -> 2; else -> 0 }
+                    AnimatedContent(tela, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "pro") { qual ->
+                        when (qual) {
+                            1 -> TelaDeLicencas(onVoltar = { if (abrirLicencas) finish() else licencas = false })
+                            2 -> TelaDaChave(onVoltar = { chave = false })
+                            else -> TelaDoPro(pedido, onFechar = ::finish, onLicencas = { licencas = true }, onChave = { chave = true })
+                        }
                     }
                 }
             }
@@ -158,7 +174,7 @@ private fun beneficios(naTv: Boolean): List<Beneficio> = Pro.Recurso.entries.map
 }
 
 @Composable
-private fun TelaDoPro(pedido: Pro.Recurso?, onFechar: () -> Unit, onLicencas: () -> Unit) {
+private fun TelaDoPro(pedido: Pro.Recurso?, onFechar: () -> Unit, onLicencas: () -> Unit, onChave: () -> Unit) {
     val contexto = LocalContext.current
     val naTv = remember { Device.isTv(contexto) }
     val estado by Pro.estado.collectAsState()
@@ -222,16 +238,32 @@ private fun TelaDoPro(pedido: Pro.Recurso?, onFechar: () -> Unit, onLicencas: ()
                 Spacer(Modifier.height(24.dp))
 
                 if (estado !is Pro.Estado.Comprado) {
-                    BotaoDeCompra(situacao, pendente)
-                    Spacer(Modifier.height(10.dp))
-                    Text(
-                        stringResource(R.string.pro_uma_vez),
-                        color = LabTheme.faint, fontSize = 12.sp, lineHeight = 17.sp, textAlign = TextAlign.Center,
-                    )
-                    Spacer(Modifier.height(14.dp))
-                    LinkDeTexto(stringResource(R.string.pro_restaurar)) {
-                        Loja.atualizar()
-                        Toast.makeText(contexto, R.string.pro_restaurando, Toast.LENGTH_SHORT).show()
+                    // No APK do GitHub num aparelho sem Play (Fire TV), o botão da Play não leva a
+                    // lugar nenhum: some, e o Telegram vira o botão principal.
+                    val comPlay = !BuildConfig.CHAVE_LIBERTYX || situacao !is Loja.Situacao.Indisponivel
+                    if (comPlay) {
+                        BotaoDeCompra(situacao, pendente)
+                        Spacer(Modifier.height(10.dp))
+                    }
+                    if (BuildConfig.CHAVE_LIBERTYX) {
+                        BotaoTelegram(principal = !comPlay, naTv = naTv)
+                        Spacer(Modifier.height(10.dp))
+                    }
+                    if (comPlay) {
+                        Text(
+                            stringResource(R.string.pro_uma_vez),
+                            color = LabTheme.faint, fontSize = 12.sp, lineHeight = 17.sp, textAlign = TextAlign.Center,
+                        )
+                        Spacer(Modifier.height(14.dp))
+                        LinkDeTexto(stringResource(R.string.pro_restaurar)) {
+                            Loja.atualizar()
+                            Toast.makeText(contexto, R.string.pro_restaurando, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    if (BuildConfig.CHAVE_LIBERTYX) LinkDeTexto(stringResource(R.string.pro_tenho_chave), onChave)
+                } else if (BuildConfig.CHAVE_LIBERTYX) {
+                    Pro.licencaDaChave?.let {
+                        Text(stringResource(R.string.chave_licenca, it), color = LabTheme.faint, fontSize = 12.sp)
                     }
                 }
                 Spacer(Modifier.height(6.dp))
@@ -316,6 +348,194 @@ private fun BotaoDeCompra(situacao: Loja.Situacao, pendente: Boolean) {
     ) {
         Text(rotulo, color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
     }
+}
+
+/** O bot da loja LibertyX, aberto direto na tela do Player. */
+private const val BOT_TELEGRAM = "https://t.me/libertx_partition_bot?start=player"
+private const val BOT_TELEGRAM_CURTO = "t.me/libertx_partition_bot"
+
+private fun abrirTelegram(contexto: Context) {
+    try {
+        contexto.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(BOT_TELEGRAM)))
+    } catch (_: ActivityNotFoundException) {
+        // TV sem navegador nem Telegram: a compra é pelo celular.
+        Toast.makeText(contexto, contexto.getString(R.string.pro_telegram_tv, BOT_TELEGRAM_CURTO), Toast.LENGTH_LONG).show()
+    }
+}
+
+/**
+ * Comprar com Bitcoin ou USDT pelo bot do Telegram, que manda a chave na hora. Na TV quase
+ * nunca há Telegram: o botão ainda tenta, e a linha de baixo diz o endereço para o celular.
+ */
+@Composable
+private fun BotaoTelegram(principal: Boolean, naTv: Boolean) {
+    val contexto = LocalContext.current
+    val forma = RoundedCornerShape(16.dp)
+    Column(
+        Modifier.fillMaxWidth().tvFocus(16.dp, scale = 1.03f).clip(forma)
+            .then(
+                if (principal) Modifier.background(LabTheme.accent, forma)
+                else Modifier.background(LabTheme.glass, forma).border(1.dp, LabTheme.accent.copy(alpha = 0.55f), forma)
+            )
+            .clickable { abrirTelegram(contexto) }
+            .padding(vertical = 13.dp, horizontal = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            stringResource(R.string.pro_telegram),
+            color = if (principal) Color.Black else LabTheme.accent, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold,
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            if (naTv) stringResource(R.string.pro_telegram_tv, BOT_TELEGRAM_CURTO) else stringResource(R.string.pro_telegram_sub),
+            color = if (principal) Color.Black.copy(alpha = 0.7f) else LabTheme.muted,
+            fontSize = 12.sp, lineHeight = 16.sp, textAlign = TextAlign.Center,
+        )
+    }
+}
+
+private fun mensagemDoErro(contexto: Context, erro: Chave.Erro): String = contexto.getString(
+    when (erro) {
+        Chave.Erro.FORMATO -> R.string.chave_erro_formato
+        Chave.Erro.INVALIDA -> R.string.chave_erro_invalida
+        Chave.Erro.OUTRO_APP -> R.string.chave_erro_outro_app
+        Chave.Erro.VERSAO -> R.string.chave_erro_versao
+    }
+)
+
+/**
+ * Colar a chave do Telegram. No celular é um campo e o botão de colar; na TV o mesmo campo
+ * existe, mas o caminho de verdade é o celular: enquanto esta tela está aberta, a TV responde
+ * num endereço da rede de casa ([AtivacaoNaRede]) onde a chave é colada pelo navegador.
+ */
+@Composable
+private fun TelaDaChave(onVoltar: () -> Unit) {
+    val contexto = LocalContext.current
+    val naTv = remember { Device.isTv(contexto) }
+    val estado by Pro.estado.collectAsState()
+    val ativo = estado is Pro.Estado.Comprado
+    var texto by rememberSaveable { mutableStateOf("") }
+    var erro by remember { mutableStateOf<String?>(null) }
+    var endereco by remember { mutableStateOf<String?>(null) }
+    val area = LocalClipboardManager.current
+
+    if (naTv && !ativo) {
+        DisposableEffect(Unit) {
+            val servidor = AtivacaoNaRede(
+                AtivacaoNaRede.Textos(
+                    titulo = contexto.getString(R.string.chave_web_titulo),
+                    explicacao = contexto.getString(R.string.chave_web_texto),
+                    botao = contexto.getString(R.string.chave_web_botao),
+                    ok = contexto.getString(R.string.chave_web_ok),
+                    erro = { mensagemDoErro(contexto, it) },
+                ),
+                aoReceber = { Pro.ativarChave(it) },
+            )
+            endereco = servidor.iniciar()
+            onDispose { servidor.parar() }
+        }
+    }
+
+    Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            BotaoIcone(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.voltar), onVoltar)
+            Spacer(Modifier.width(12.dp))
+            Text(stringResource(R.string.chave_titulo), color = LabTheme.text, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+        }
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp).padding(bottom = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Column(Modifier.widthIn(max = 560.dp)) {
+                if (ativo) {
+                    Spacer(Modifier.height(24.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.CheckCircle, null, tint = LabTheme.green, modifier = Modifier.size(28.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text(stringResource(R.string.chave_ok), color = LabTheme.green, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Pro.licencaDaChave?.let {
+                        Spacer(Modifier.height(6.dp))
+                        Text(stringResource(R.string.chave_licenca, it), color = LabTheme.faint, fontSize = 12.sp)
+                    }
+                    Spacer(Modifier.height(24.dp))
+                    BotaoAmarelo(stringResource(R.string.voltar), onVoltar)
+                    return@Column
+                }
+                if (naTv) {
+                    Spacer(Modifier.height(8.dp))
+                    Column(Modifier.fillMaxWidth().labCard().padding(18.dp)) {
+                        Text(stringResource(R.string.chave_tv_titulo), color = LabTheme.accent, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(6.dp))
+                        val e = endereco
+                        if (e != null) {
+                            Text(stringResource(R.string.chave_tv_texto), color = LabTheme.muted, fontSize = 14.sp, lineHeight = 19.sp)
+                            Spacer(Modifier.height(10.dp))
+                            Text(e, color = LabTheme.text, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.5.sp)
+                        } else {
+                            Text(stringResource(R.string.chave_tv_sem_rede), color = LabTheme.muted, fontSize = 14.sp)
+                        }
+                    }
+                    Spacer(Modifier.height(18.dp))
+                }
+                Text(stringResource(R.string.chave_texto), color = LabTheme.muted, fontSize = 14.sp, lineHeight = 19.sp)
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = texto, onValueChange = { texto = it; erro = null },
+                    label = { Text(stringResource(R.string.chave_campo)) },
+                    placeholder = { Text("LXP1-…") },
+                    minLines = 3,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, autoCorrectEnabled = false),
+                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, fontSize = 14.sp),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                erro?.let {
+                    Spacer(Modifier.height(8.dp))
+                    Text(it, color = LabTheme.red, fontSize = 13.sp, lineHeight = 18.sp)
+                }
+                Spacer(Modifier.height(14.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (!naTv) {
+                        Box(Modifier.weight(1f)) {
+                            BotaoVidro(stringResource(R.string.chave_colar)) {
+                                area.getText()?.text?.let { texto = it.trim(); erro = null }
+                            }
+                        }
+                    }
+                    Box(Modifier.weight(1f)) {
+                        BotaoAmarelo(stringResource(R.string.chave_ativar)) {
+                            when (val r = Pro.ativarChave(texto)) {
+                                is Chave.Resultado.Valida -> erro = null
+                                is Chave.Resultado.Recusada -> erro = mensagemDoErro(contexto, r.erro)
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(22.dp))
+                LinkDeTexto(stringResource(R.string.chave_comprar)) { abrirTelegram(contexto) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BotaoAmarelo(texto: String, onClick: () -> Unit) {
+    val forma = RoundedCornerShape(16.dp)
+    Box(
+        Modifier.fillMaxWidth().tvFocus(16.dp, scale = 1.03f).clip(forma).background(LabTheme.accent, forma)
+            .clickable(onClick = onClick).padding(vertical = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) { Text(texto, color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold) }
+}
+
+@Composable
+private fun BotaoVidro(texto: String, onClick: () -> Unit) {
+    val forma = RoundedCornerShape(16.dp)
+    Box(
+        Modifier.fillMaxWidth().tvFocus(16.dp, scale = 1.03f).clip(forma).background(LabTheme.glass, forma)
+            .border(0.5.dp, LabTheme.glassBorder, forma).clickable(onClick = onClick).padding(vertical = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) { Text(texto, color = LabTheme.text, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
 }
 
 private fun abrirNaPlay(contexto: Context) {

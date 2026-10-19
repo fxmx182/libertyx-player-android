@@ -234,7 +234,31 @@ Quem vê o paywall depende de onde o APK nasceu:
 | `assembleRelease` nesta máquina (`dist/`) | **liberado** — é o do dono |
 | o mesmo com `-PlibertyxLoja` | travado, para testar a tela de compra |
 | o do CI (release do GitHub) | travado, igual à loja |
-| `bundleLoja` (a Play Store) | travado, sempre |
+| `bundleLoja` (a Play Store) | travado, sempre, e sem a chave LibertyX |
+
+### A chave LibertyX (só no APK do GitHub)
+
+Fora da Play há uma segunda forma de comprar: a **chave LibertyX**, vendida com
+Bitcoin ou USDT/USDC pelo bot da loja no Telegram
+([@libertx_partition_bot](https://t.me/libertx_partition_bot?start=player), que
+vende todos os apps). É o que serve a quem não tem Play, como o Fire TV.
+
+- `core/Chave.kt` confere a chave sozinho, sem internet: `LXP1-…`, 12 bytes de
+  dados + assinatura ECDSA P-256, o mesmo formato e a mesma chave pública do
+  LibertyX Partition. O segundo byte é o produto: 2 é o Player, 9 o pacote com
+  todos os apps; a chave do Partition (1) ou do Folder (3) é recusada com aviso.
+- Na tela do Pro: **Pagar com Bitcoin ou USDT** (abre o bot) e **Tenho uma
+  chave**. Num aparelho sem Play, o botão da Play some e o do Telegram vira o
+  principal.
+- Na TV, digitar a chave no controle é inviável: enquanto a tela da chave está
+  aberta, a TV responde em `http://<ip-da-tv>:8787` (`core/AtivacaoNaRede.kt`),
+  e a chave é colada pelo navegador do celular, na mesma rede.
+- O `bundleLoja` desliga tudo isso (`BuildConfig.CHAVE_LIBERTYX = false`): a
+  política de pagamentos da Play proíbe outro meio de pagamento para liberar
+  recurso do app.
+
+Testes de JVM: `./gradlew testCelularReleaseUnitTest` (com `LXP_CHAVE_REAL=<chave>`
+confere também uma chave de verdade contra a pública embutida).
 
 `-PlibertyxDiasDeTeste=0` encurta o teste para ver o fim dele no emulador (o
 `bundleLoja` ignora e usa 7). O passo a passo da publicação, a ficha da loja nos

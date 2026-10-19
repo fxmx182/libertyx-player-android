@@ -277,4 +277,29 @@
     <string name="licencas_intro">LibertyX is built on these open-source projects. Tap one to read its license.</string>
     <string name="pro_menu">LibertyX Pro</string>
     <string name="pro_auto_bloqueado">Unlock LibertyX Pro on your phone to use it in the car</string>
+
+    <!-- Chave LibertyX (só no APK do GitHub): compra com Bitcoin/USDT pelo Telegram -->
+    <string name="pro_telegram">Pay with Bitcoin or USDT</string>
+    <string name="pro_telegram_sub">On Telegram — the key arrives instantly</string>
+    <string name="pro_telegram_tv">On your phone, open %1$s in Telegram to buy with Bitcoin or USDT.</string>
+    <string name="pro_tenho_chave">I have a key</string>
+    <string name="chave_titulo">Activate with a key</string>
+    <string name="chave_texto">Paste the key the LibertyX bot sent you on Telegram. It starts with LXP1.</string>
+    <string name="chave_campo">Key</string>
+    <string name="chave_colar">Paste</string>
+    <string name="chave_ativar">Activate</string>
+    <string name="chave_ok">Pro activated with your key — thank you!</string>
+    <string name="chave_licenca">License %1$s</string>
+    <string name="chave_erro_formato">That doesn\'t look like a complete key. Copy it again from Telegram and paste the whole thing.</string>
+    <string name="chave_erro_invalida">This key isn\'t valid. Check that you copied all of it.</string>
+    <string name="chave_erro_outro_app">This key is for another LibertyX app, not the Player.</string>
+    <string name="chave_erro_versao">This key is from a newer version. Update the app and try again.</string>
+    <string name="chave_tv_titulo">Easier from your phone</string>
+    <string name="chave_tv_texto">On a phone on the same Wi-Fi, open this address in the browser and paste the key there:</string>
+    <string name="chave_tv_sem_rede">Connect the TV to your home network to activate from your phone.</string>
+    <string name="chave_web_titulo">Activate LibertyX Pro</string>
+    <string name="chave_web_texto">Paste the key the LibertyX bot sent you on Telegram. The TV unlocks Pro as soon as you tap the button.</string>
+    <string name="chave_web_botao">Activate on the TV</string>
+    <string name="chave_web_ok">Done! Pro is active on your TV. You can close this page.</string>
+    <string name="chave_comprar">Don\'t have a key yet? Buy one on Telegram</string>
 </resources>

@@ -62,6 +62,10 @@ android {
         // para testar a tela de compra.
         val liberado = System.getenv("CI") == null && !project.hasProperty("libertyxLoja")
         buildConfigField("boolean", "LIBERADO", liberado.toString())
+        // A chave LibertyX (Bitcoin/USDT pelo Telegram) como segunda forma de comprar o Pro. Só
+        // fora da Play: a política de pagamentos da loja proíbe outro meio de pagamento para
+        // liberar recurso do app, então o tipo `loja` desliga (ver lá embaixo).
+        buildConfigField("boolean", "CHAVE_LIBERTYX", "true")
         // Só para testar o fim do teste sem esperar uma semana (o emulador
         // não deixa adiantar o relógio): `-PlibertyxDiasDeTeste=0`.
         buildConfigField(
@@ -160,12 +164,14 @@ android {
         //
         // Igual ao release, com duas diferenças que não podem ser esquecidas
         // na hora do envio — por isso são um tipo de build e não opções: a
-        // assinatura é a de envio, e o Pro nunca vem liberado.
+        // assinatura é a de envio, o Pro nunca vem liberado, e a chave LibertyX
+        // (pagamento fora da Play) não existe.
         create("loja") {
             initWith(getByName("release"))
             signingConfig = signingConfigs.findByName("envio")
             buildConfigField("boolean", "LIBERADO", "false")
             buildConfigField("int", "DIAS_DE_TESTE", "7")
+            buildConfigField("boolean", "CHAVE_LIBERTYX", "false")
             matchingFallbacks += "release"
         }
         debug {
@@ -347,4 +353,7 @@ dependencies {
     // A compra única do Pro. Sem servidor: a Play guarda a compra na conta
     // Google, e o app só pergunta a ela.
     implementation(libs.billing)
+
+    // Só os testes de JVM (a conferência da chave LibertyX).
+    testImplementation("junit:junit:4.13.2")
 }
