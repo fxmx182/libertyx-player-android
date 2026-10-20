@@ -242,11 +242,12 @@ Quem vê o paywall depende de onde o APK nasceu:
 
 ### Amazon Appstore (Fire TV)
 
-`./gradlew assembleAmazon` gera `dist/amazon/LibertyXPlayer-FireTV.apk`: a
-variante de TV com a compra do Pro pela Amazon (SKU `libertyx_pro`, tipo
+`./gradlew assembleAmazon` gera `dist/amazon/LibertyXPlayer-FireTV.apk` (a
+variante de TV) e `LibertyXPlayer-FireTablet.apk` (a de celular, só ARM), com a
+compra do Pro pela Amazon (SKU `libertyx_pro`, tipo
 *entitlement*). Fire TV não tem Play, e a Amazon exige o sistema de compras
-dela — por isso este APK também não tem a chave LibertyX. A loja da Amazon saiu
-dos celulares Android em 2025, então não existe a variante de celular.
+dela — por isso estes APKs também não têm a chave LibertyX. A loja da Amazon saiu
+dos celulares Android comuns em 2025: a variante de celular é a do tablet Fire.
 
 O SDK da Amazon (`amazon-appstore-sdk`) precisa da chave pública do app,
 `src/amazon/assets/AppstoreAuthenticationKey.pem`, baixada do console da Amazon

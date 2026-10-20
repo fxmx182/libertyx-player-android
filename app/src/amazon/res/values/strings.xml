@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Os textos da compra que falam da loja: na versão da Amazon, a loja é a Amazon. -->
 <resources>
-    <string name="pro_uma_vez">One-time payment, no subscription. Works on all your Fire TV devices with the same Amazon account.</string>
+    <string name="pro_uma_vez">One-time payment, no subscription. Works on all your Fire TV and Fire tablet devices with the same Amazon account.</string>
     <string name="pro_na_play">Get it on the Amazon Appstore</string>
     <string name="pro_sem_play">The Amazon Appstore isn\'t available on this device.</string>
 </resources>

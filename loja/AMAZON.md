@@ -37,6 +37,11 @@ sem ela o build para.
   classificação tudo "None/No", não coleta dados, política de privacidade do
   repositório, instruções para o revisor preenchidas. A Amazon exige 3 capturas
   de tablet mesmo sem tablet: foram as `tablet-en-{1,3,4}` reduzidas a 1920×1080.
+- **Tablet Fire (decidido em 2026-10-20: pago como na TV), para mandar como
+  atualização depois da aprovação:** `dist/amazon/LibertyXPlayer-FireTablet.apk`
+  (variante de celular, arm64+armv7, final 1). No console: adicionar como APK2,
+  deixar só os tablets Fire nele (e conferir que o APK1 continua só com Fire TV),
+  responder "touch: Yes", trocar as capturas de tablet pelas de verdade.
 - **Enviado em 2026-10-20** (com o OK do dono): IAP "Submit to Test and Live" →
   *Approved*; export compliance marcada; app *Submitted*, previsão da Amazon
   para entrar na loja: 25/10/2026.

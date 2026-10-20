@@ -178,7 +178,8 @@ android {
         //
         // Igual ao da loja, mas com a compra pela Amazon (`src/amazon/.../Loja.kt` no lugar do
         // `src/play`) e sem a biblioteca da Play dentro. Assina com a chave de sempre: a Amazon
-        // reassina com a dela na publicação. Só existe na variante de TV (ver `androidComponents`).
+        // reassina com a dela na publicação. Sai em dois APKs da mesma página: Fire TV (variante
+        // de TV) e tablet Fire (variante de celular) — ver `androidComponents`.
         create("amazon") {
             initWith(getByName("release"))
             buildConfigField("boolean", "LIBERADO", "false")
@@ -262,9 +263,15 @@ android {
     }
 }
 
-// A Amazon Appstore só vale para a TV: a loja da Amazon saiu dos celulares Android em 2025.
+// Na Amazon, a variante de celular é a do tablet Fire (a loja da Amazon saiu dos celulares
+// Android comuns em 2025). Tablet Fire é sempre ARM: o x86_64 fica fora do APK universal,
+// que é o que vai para a loja — a não ser com `-PlibertyxX86`, para testar no emulador.
 androidComponents {
-    beforeVariants(selector().withBuildType("amazon").withFlavor("aparelho" to "celular")) { it.enable = false }
+    if (!project.hasProperty("libertyxX86")) {
+        onVariants(selector().withBuildType("amazon").withFlavor("aparelho" to "celular")) {
+            it.packaging.jniLibs.excludes.add("lib/x86_64/**")
+        }
+    }
 }
 
 /**
@@ -339,10 +346,14 @@ val publicarPacotes = tasks.register<Copy>("publicarPacotes") {
 
 /** O APK da Amazon Appstore (Fire TV), em `Android/dist/amazon/`. */
 val publicarAmazon = tasks.register<Copy>("publicarAmazon") {
-    description = "Copia o APK da Amazon Appstore para Android/dist/amazon/."
+    description = "Copia os APKs da Amazon Appstore para Android/dist/amazon/."
     from(layout.buildDirectory.dir("outputs/apk/tv/amazon")) {
         include("*-universal-amazon.apk")
         rename { "LibertyXPlayer-FireTV.apk" }
+    }
+    from(layout.buildDirectory.dir("outputs/apk/celular/amazon")) {
+        include("*-universal-amazon.apk")
+        rename { "LibertyXPlayer-FireTablet.apk" }
     }
     into(rootProject.layout.projectDirectory.dir("dist/amazon"))
     outputs.upToDateWhen { false }
@@ -354,7 +365,7 @@ tasks.whenTaskAdded {
     if (name == "assembleAmazon") finalizedBy(publicarAmazon)
     // Sem a chave pública do app (console da Amazon › APK Files › View public key), o SDK
     // recusa toda compra — e o APK sairia aparentemente perfeito. Melhor parar aqui.
-    if (name == "preTvAmazonBuild") doFirst {
+    if (name == "preTvAmazonBuild" || name == "preCelularAmazonBuild") doFirst {
         check(file("src/amazon/assets/AppstoreAuthenticationKey.pem").exists()) {
             "Falta app/src/amazon/assets/AppstoreAuthenticationKey.pem (console da Amazon)."
         }
