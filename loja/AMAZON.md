@@ -32,8 +32,12 @@ sem ela o build para.
 - App grátis; textos en-US, pt-BR, es-ES (mando/ordenadores) e es-MX (control
   remoto/computadoras) completos; ícones 512/114, ícone Fire TV, 3 capturas
   `tv-*` e fundo enviados.
-- Falta: o APK (113 MB, o dono arrasta — a ferramenta do navegador só leva até
-  10 MB), aparelhos (só Fire TV), classificação de conteúdo, envio do IAP e do app.
+- APK1 FireTV 4210722 (DRM: No) → só os 91 Fire TV com Fire OS; a Amazon tinha
+  marcado 12 tablets e 2 "Automotive", desmarcados à mão. 18+, todos os países,
+  classificação tudo "None/No", não coleta dados, política de privacidade do
+  repositório, instruções para o revisor preenchidas. A Amazon exige 3 capturas
+  de tablet mesmo sem tablet: foram as `tablet-en-{1,3,4}` reduzidas a 1920×1080.
+- Falta: export compliance + enviar IAP e app (com o OK do dono).
 
 ## Testar a compra antes
 
