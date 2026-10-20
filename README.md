@@ -250,7 +250,8 @@ dos celulares Android em 2025, então não existe a variante de celular.
 
 O SDK da Amazon (`amazon-appstore-sdk`) precisa da chave pública do app,
 `src/amazon/assets/AppstoreAuthenticationKey.pem`, baixada do console da Amazon
-depois de criar o app lá. Testar a compra sem publicar: o **Live App Testing**
+(app `amzn1.devportal.mobileapp.d4b0b2f98740417989adba4961ce6642`); sem ela o
+build para. Testar a compra sem publicar: o **Live App Testing**
 do console (testadores recebem o app pela própria Appstore e compram sem
 cobrança). O modo sandbox do App Tester não serve a este APK: o SDK só o aceita
 em build depurável, e o log diz "Production Mode: Release build". Sem Appstore

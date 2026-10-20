@@ -352,6 +352,13 @@ tasks.whenTaskAdded {
     if (name == "assembleRelease") finalizedBy(publicarApks)
     if (name == "bundleLoja") finalizedBy(publicarPacotes)
     if (name == "assembleAmazon") finalizedBy(publicarAmazon)
+    // Sem a chave pública do app (console da Amazon › APK Files › View public key), o SDK
+    // recusa toda compra — e o APK sairia aparentemente perfeito. Melhor parar aqui.
+    if (name == "preTvAmazonBuild") doFirst {
+        check(file("src/amazon/assets/AppstoreAuthenticationKey.pem").exists()) {
+            "Falta app/src/amazon/assets/AppstoreAuthenticationKey.pem (console da Amazon)."
+        }
+    }
 }
 
 dependencies {
