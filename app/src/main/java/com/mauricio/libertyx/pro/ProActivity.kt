@@ -332,7 +332,7 @@ private fun BotaoDeCompra(situacao: Loja.Situacao, pendente: Boolean) {
     val rotulo = when (situacao) {
         is Loja.Situacao.Pronta -> stringResource(R.string.pro_comprar_por, situacao.preco)
         Loja.Situacao.Conectando -> stringResource(R.string.pro_carregando)
-        // Aparelho sem Play, ou APK de fora da loja: a compra é feita lá.
+        // Aparelho sem a loja, ou APK de fora dela: a compra é feita lá.
         Loja.Situacao.Indisponivel -> stringResource(R.string.pro_na_play)
     }
     val forma = RoundedCornerShape(16.dp)
@@ -341,7 +341,7 @@ private fun BotaoDeCompra(situacao: Loja.Situacao, pendente: Boolean) {
             .background(if (habilitado) LabTheme.accent else LabTheme.accent.copy(alpha = 0.35f), forma)
             .clickable(enabled = habilitado) {
                 val comprou = situacao is Loja.Situacao.Pronta && atividade != null && Loja.comprar(atividade)
-                if (!comprou) abrirNaPlay(contexto)
+                if (!comprou) abrirNaLoja(contexto)
             }
             .padding(vertical = 17.dp),
         contentAlignment = Alignment.Center,
@@ -538,17 +538,17 @@ private fun BotaoVidro(texto: String, onClick: () -> Unit) {
     ) { Text(texto, color = LabTheme.text, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
 }
 
-private fun abrirNaPlay(contexto: Context) {
-    val pacote = contexto.packageName
-    try {
-        contexto.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$pacote")))
-    } catch (_: ActivityNotFoundException) {
-        runCatching {
-            contexto.startActivity(
-                Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$pacote"))
-            )
-        }.onFailure { Toast.makeText(contexto, R.string.pro_sem_play, Toast.LENGTH_LONG).show() }
+/** A página do app na loja de onde ele veio (Play ou Amazon): o app da loja primeiro, depois o site. */
+private fun abrirNaLoja(contexto: Context) {
+    val abriu = Loja.paginaDoApp(contexto.packageName).any { endereco ->
+        try {
+            contexto.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(endereco)))
+            true
+        } catch (_: ActivityNotFoundException) {
+            false
+        }
     }
+    if (!abriu) Toast.makeText(contexto, R.string.pro_sem_play, Toast.LENGTH_LONG).show()
 }
 
 @Composable

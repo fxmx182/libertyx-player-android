@@ -174,10 +174,28 @@ android {
             buildConfigField("boolean", "CHAVE_LIBERTYX", "false")
             matchingFallbacks += "release"
         }
+        // O que vai para a Amazon Appstore (Fire TV e Fire TV Stick): `./gradlew assembleAmazon`.
+        //
+        // Igual ao da loja, mas com a compra pela Amazon (`src/amazon/.../Loja.kt` no lugar do
+        // `src/play`) e sem a biblioteca da Play dentro. Assina com a chave de sempre: a Amazon
+        // reassina com a dela na publicação. Só existe na variante de TV (ver `androidComponents`).
+        create("amazon") {
+            initWith(getByName("release"))
+            buildConfigField("boolean", "LIBERADO", "false")
+            buildConfigField("int", "DIAS_DE_TESTE", "7")
+            buildConfigField("boolean", "CHAVE_LIBERTYX", "false")
+            matchingFallbacks += "release"
+        }
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
         }
+    }
+
+    // A compra pela Play mora em `src/play` e entra em todo tipo de build menos o da Amazon,
+    // que traz a sua em `src/amazon` (pasta do próprio tipo, o Gradle a acha sozinho).
+    sourceSets {
+        listOf("debug", "release", "loja").forEach { getByName(it).java.srcDir("src/play/java") }
     }
 
     // O celular recebe um APK por arquitetura; a TV recebe o universal.
@@ -242,6 +260,11 @@ android {
         // Android moderno as extrai na instalação de qualquer jeito.
         jniLibs { useLegacyPackaging = false }
     }
+}
+
+// A Amazon Appstore só vale para a TV: a loja da Amazon saiu dos celulares Android em 2025.
+androidComponents {
+    beforeVariants(selector().withBuildType("amazon").withFlavor("aparelho" to "celular")) { it.enable = false }
 }
 
 /**
@@ -314,9 +337,21 @@ val publicarPacotes = tasks.register<Copy>("publicarPacotes") {
     outputs.upToDateWhen { false }
 }
 
+/** O APK da Amazon Appstore (Fire TV), em `Android/dist/amazon/`. */
+val publicarAmazon = tasks.register<Copy>("publicarAmazon") {
+    description = "Copia o APK da Amazon Appstore para Android/dist/amazon/."
+    from(layout.buildDirectory.dir("outputs/apk/tv/amazon")) {
+        include("*-universal-amazon.apk")
+        rename { "LibertyXPlayer-FireTV.apk" }
+    }
+    into(rootProject.layout.projectDirectory.dir("dist/amazon"))
+    outputs.upToDateWhen { false }
+}
+
 tasks.whenTaskAdded {
     if (name == "assembleRelease") finalizedBy(publicarApks)
     if (name == "bundleLoja") finalizedBy(publicarPacotes)
+    if (name == "assembleAmazon") finalizedBy(publicarAmazon)
 }
 
 dependencies {
@@ -352,7 +387,11 @@ dependencies {
 
     // A compra única do Pro. Sem servidor: a Play guarda a compra na conta
     // Google, e o app só pergunta a ela.
-    implementation(libs.billing)
+    "debugImplementation"(libs.billing)
+    "releaseImplementation"(libs.billing)
+    "lojaImplementation"(libs.billing)
+    // Na Fire TV, a compra é pela Amazon — e a biblioteca da Play nem entra no APK.
+    "amazonImplementation"(libs.amazon.appstore)
 
     // Só os testes de JVM (a conferência da chave LibertyX).
     testImplementation("junit:junit:4.13.2")

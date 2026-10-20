@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A versão da Amazon Appstore (Fire TV): só o que o sistema de compras da Amazon pede.
+
+  O recebedor é por onde a Appstore devolve as respostas da compra; a permissão garante que só
+  ela pode chamá-lo. As consultas de pacote são exigência do Android 11 (Fire OS 8) para o app
+  enxergar a Appstore (`venezia`) e o App Tester, que simula a loja nos testes.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <queries>
+        <package android:name="com.amazon.venezia" />
+        <package android:name="com.amazon.sdktestclient" />
+    </queries>
+
+    <application>
+        <receiver
+            android:name="com.amazon.device.iap.ResponseReceiver"
+            android:exported="true"
+            android:permission="com.amazon.inapp.purchasing.Permission.NOTIFY">
+            <intent-filter>
+                <action android:name="com.amazon.inapp.purchasing.NOTIFY" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

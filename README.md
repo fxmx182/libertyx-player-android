@@ -222,8 +222,11 @@ quadro**. Os sete primeiros dias vêm com tudo liberado — a Play não tem per�
 grátis para compra única, então o app conta sozinho (`core/Pro.kt`).
 
 - `core/Pro.kt`: o estado (comprado, teste com N dias, expirado).
-- `core/Loja.kt`: a conversa com a Play — compra, reconhecimento (sem ele a
-  Play estorna em 3 dias), pagamento pendente de boleto/Pix, restaurar.
+- `core/Loja.kt`: a conversa com a loja. Há dois, com a mesma cara pública:
+  `src/play/` (Google Play Billing — compra, reconhecimento, sem o qual a Play
+  estorna em 3 dias, pagamento pendente de boleto/Pix, restaurar) e
+  `src/amazon/` (Amazon Appstore IAP, para a Fire TV). O tipo de build escolhe
+  qual entra; a biblioteca da outra loja nem vai no APK.
 - `pro/ProActivity.kt`: a tela do Pro e a de licenças.
 - A porta de cada recurso é `ProActivity.exigir(contexto, Recurso)`.
 
@@ -235,6 +238,23 @@ Quem vê o paywall depende de onde o APK nasceu:
 | o mesmo com `-PlibertyxLoja` | travado, para testar a tela de compra |
 | o do CI (release do GitHub) | travado, igual à loja |
 | `bundleLoja` (a Play Store) | travado, sempre, e sem a chave LibertyX |
+| `assembleAmazon` (Amazon Appstore, só TV) | travado, compra pela Amazon, sem a chave LibertyX |
+
+### Amazon Appstore (Fire TV)
+
+`./gradlew assembleAmazon` gera `dist/amazon/LibertyXPlayer-FireTV.apk`: a
+variante de TV com a compra do Pro pela Amazon (SKU `libertyx_pro`, tipo
+*entitlement*). Fire TV não tem Play, e a Amazon exige o sistema de compras
+dela — por isso este APK também não tem a chave LibertyX. A loja da Amazon saiu
+dos celulares Android em 2025, então não existe a variante de celular.
+
+O SDK da Amazon (`amazon-appstore-sdk`) precisa da chave pública do app,
+`src/amazon/assets/AppstoreAuthenticationKey.pem`, baixada do console da Amazon
+depois de criar o app lá. Testar a compra sem publicar: o **Live App Testing**
+do console (testadores recebem o app pela própria Appstore e compram sem
+cobrança). O modo sandbox do App Tester não serve a este APK: o SDK só o aceita
+em build depurável, e o log diz "Production Mode: Release build". Sem Appstore
+(emulador, APK instalado à mão) o botão vira "Comprar na Amazon Appstore".
 
 ### A chave LibertyX (só no APK do GitHub)
 

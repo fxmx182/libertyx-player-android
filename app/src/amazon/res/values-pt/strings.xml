@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pro_uma_vez">Pagamento único, sem assinatura. Vale em todos os seus aparelhos Fire TV com a mesma conta Amazon.</string>
+    <string name="pro_na_play">Comprar na Amazon Appstore</string>
+    <string name="pro_sem_play">A Amazon Appstore não está disponível neste aparelho.</string>
+</resources>

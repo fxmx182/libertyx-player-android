@@ -15,6 +15,7 @@ documentfile = "1.0.1"
 # acesso SMB nativo. É o mesmo motor do iOS, e é dele que vem o "abre tudo".
 libvlc = "3.7.5"
 billing = "8.3.0"
+amazonAppstore = "3.0.9"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -32,6 +33,7 @@ androidx-security-crypto = { group = "androidx.security", name = "security-crypt
 androidx-documentfile = { group = "androidx.documentfile", name = "documentfile", version.ref = "documentfile" }
 libvlc = { group = "org.videolan.android", name = "libvlc-all", version.ref = "libvlc" }
 billing = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "billing" }
+amazon-appstore = { group = "com.amazon.device", name = "amazon-appstore-sdk", version.ref = "amazonAppstore" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

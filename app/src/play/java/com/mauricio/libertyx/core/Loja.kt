@@ -21,6 +21,9 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * A conversa com a Google Play sobre a compra do Pro.
  *
+ * Esta é a versão da Play e do APK do GitHub; a da Amazon (Fire TV) mora em
+ * `src/amazon` com a mesma cara pública, e o tipo de build escolhe qual entra.
+ *
  * Sem servidor próprio: a compra fica na conta Google de quem pagou, e o app
  * pergunta a ela a cada abertura. É o que faz o Pro valer em todo aparelho da
  * mesma conta — celular, tablet e a TV — e voltar sozinho num celular novo.
@@ -148,6 +151,12 @@ object Loja {
             AcknowledgePurchaseParams.newBuilder().setPurchaseToken(compra.purchaseToken).build()
         ) { /* Se falhar, a próxima abertura tenta de novo: há três dias. */ }
     }
+
+    /** A página do app na Play: o app da loja, se houver, senão o site. */
+    fun paginaDoApp(pacote: String) = listOf(
+        "market://details?id=$pacote",
+        "https://play.google.com/store/apps/details?id=$pacote",
+    )
 
     /** @return false quando não há como comprar aqui (a tela oferece a Play Store). */
     fun comprar(atividade: Activity): Boolean {
