@@ -19,13 +19,14 @@ This data never leaves the device, except through Android's own backup to your
 Google account, if you have it turned on in the system settings.
 
 **Network access** is used only to reach the servers you add, to find servers
-on your local network when you ask the app to search, and to talk to Google
-Play about the Pro purchase.
+on your local network when you ask the app to search, and to talk to the store
+the app came from (Google Play or the Amazon Appstore) about the Pro purchase.
 
-**Purchases.** LibertyX Pro is sold through Google Play. Payment is handled
-entirely by Google; the app only asks Google Play whether this account has
-bought Pro. Google's privacy policy applies to the payment:
-https://policies.google.com/privacy
+**Purchases.** LibertyX Pro is sold through Google Play, or through the
+Amazon Appstore in the Fire TV version. Payment is handled entirely by the
+store; the app only asks it whether this account has bought Pro. The store's
+privacy policy applies to the payment: https://policies.google.com/privacy
+(Google) or https://www.amazon.com/privacy (Amazon).
 
 **Permissions**
 - *Videos / storage*: to list and play the videos on your device.
@@ -35,7 +36,8 @@ https://policies.google.com/privacy
 
 **Children.** The app is not directed at children and collects no data from anyone.
 
-**Contact:** the developer email shown on the app's Google Play page.
+**Contact:** the developer email shown on the app's store page
+(libertyx.suporte@gmail.com).
 
 ---
 
@@ -55,13 +57,15 @@ vão para a sua galeria. Nada disso sai do aparelho, a não ser pelo backup do
 próprio Android na sua conta Google, se estiver ligado nas configurações.
 
 **Rede:** usada só para acessar os servidores que você adiciona, procurar
-servidores na sua rede local quando você pede, e consultar a Google Play sobre a
-compra do Pro.
+servidores na sua rede local quando você pede, e consultar a loja de onde o app
+veio (Google Play ou Amazon Appstore) sobre a compra do Pro.
 
-**Compras:** o LibertyX Pro é vendido pela Google Play, que cuida de todo o
-pagamento. O app só pergunta à Google Play se esta conta comprou o Pro.
+**Compras:** o LibertyX Pro é vendido pela Google Play, ou pela Amazon Appstore
+na versão de Fire TV; a loja cuida de todo o pagamento. O app só pergunta a ela
+se esta conta comprou o Pro.
 
-**Contato:** o e-mail do desenvolvedor na página do app na Google Play.
+**Contato:** o e-mail do desenvolvedor na página do app na loja
+(libertyx.suporte@gmail.com).
 
 ---
 
@@ -81,9 +85,12 @@ van a tu galería. Nada de esto sale del dispositivo, salvo por la copia de
 seguridad del propio Android en tu cuenta de Google, si está activada.
 
 **Red:** solo para acceder a los servidores que agregas, buscar servidores en tu
-red local cuando lo pides y consultar a Google Play sobre la compra de Pro.
+red local cuando lo pides y consultar a la tienda de donde vino la app (Google
+Play o Amazon Appstore) sobre la compra de Pro.
 
-**Compras:** LibertyX Pro se vende a través de Google Play, que gestiona todo el
-pago. La app solo pregunta a Google Play si esta cuenta compró Pro.
+**Compras:** LibertyX Pro se vende a través de Google Play, o de Amazon Appstore
+en la versión de Fire TV; la tienda gestiona todo el pago. La app solo le
+pregunta si esta cuenta compró Pro.
 
-**Contacto:** el correo del desarrollador en la página de la app en Google Play.
+**Contacto:** el correo del desarrollador en la página de la app en la tienda
+(libertyx.suporte@gmail.com).
