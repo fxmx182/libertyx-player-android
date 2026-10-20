@@ -29,6 +29,11 @@ sem ela o build para.
   en/pt/es.
 - IAP `libertyx_pro` (Entitlement) "Ready to Submit": US$ 4,99 base (Japão
   ¥791, Europa €4,45, Brasil convertido pela Amazon).
+- App grátis; textos en-US, pt-BR, es-ES (mando/ordenadores) e es-MX (control
+  remoto/computadoras) completos; ícones 512/114, ícone Fire TV, 3 capturas
+  `tv-*` e fundo enviados.
+- Falta: o APK (113 MB, o dono arrasta — a ferramenta do navegador só leva até
+  10 MB), aparelhos (só Fire TV), classificação de conteúdo, envio do IAP e do app.
 
 ## Testar a compra antes
 
