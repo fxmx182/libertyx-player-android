@@ -37,7 +37,9 @@ sem ela o build para.
   classificação tudo "None/No", não coleta dados, política de privacidade do
   repositório, instruções para o revisor preenchidas. A Amazon exige 3 capturas
   de tablet mesmo sem tablet: foram as `tablet-en-{1,3,4}` reduzidas a 1920×1080.
-- Falta: export compliance + enviar IAP e app (com o OK do dono).
+- **Enviado em 2026-10-20** (com o OK do dono): IAP "Submit to Test and Live" →
+  *Approved*; export compliance marcada; app *Submitted*, previsão da Amazon
+  para entrar na loja: 25/10/2026.
 
 ## Testar a compra antes
 
