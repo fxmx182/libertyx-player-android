@@ -1113,23 +1113,10 @@ class PlayerActivity : Activity() {
                 panStartVolume = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
                 panIsOnLeftHalf = ev.x < ui.root.width / 2f
 
-                // Mostrar e esconder acontecem os dois no encostar do dedo.
-                //
-                // O toque único teria que esperar o sistema descartar a
-                // hipótese de toque duplo — uns 0,3 s. Nesse intervalo parece
-                // que nada aconteceu, o usuário toca de novo, vira toque duplo
-                // e o vídeo pausa. Respondendo já no toque, a barra aparece na
-                // hora e o gesto duplo continua valendo para o que serve.
-                if (controlsVisible) {
-                    // A margem existe para o segundo dedo de uma pinça não
-                    // desfazer o que o primeiro fez.
-                    if (System.currentTimeMillis() - controlsVisibleSince > 300) {
-                        setControlsVisible(false)
-                    }
-                } else {
-                    setControlsVisible(true)
-                    scheduleControlsHide()
-                }
+                // Mostrar e esconder os controles ficam para o soltar
+                // (ACTION_UP), e só num toque curto: encostar também é o
+                // começo de segurar e de arrastar.
+                toqueFoiDuplo = false
 
                 agendarToqueLongo()
                 detectarToqueDuplo(ev)
@@ -1184,6 +1171,11 @@ class PlayerActivity : Activity() {
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 cancelarToqueLongo()
+                if (ev.actionMasked == MotionEvent.ACTION_UP && panAxis == PanAxis.UNDECIDED &&
+                    !holdActive && !toqueFoiDuplo && ev.eventTime - ev.downTime < 350
+                ) {
+                    alternarControlesNoToque()
+                }
                 desfazerAceleracao()
                 if (panAxis == PanAxis.HORIZONTAL) {
                     engine.endScrub(prefs.preciseScrub)
@@ -1353,11 +1345,39 @@ class PlayerActivity : Activity() {
     private var lastTapAt = 0L
     private var lastTapX = 0f
 
+    /** O segundo toque de um toque duplo: ao soltar, não alterna os controles. */
+    private var toqueFoiDuplo = false
+
+    /**
+     * Mostrar e esconder os controles é coisa do toque curto, e de nada mais.
+     *
+     * Já foi no encostar do dedo: a barra aparecia na hora, sem esperar o
+     * toque duplo ser descartado. Mas encostar também é o começo de segurar e
+     * de arrastar, e segurar para acelerar enchia a tela de botões em cima do
+     * filme que se queria ver correr. Agora é no soltar, e só se o dedo ficou
+     * pouco tempo e não andou: segurar mostra só a velocidade, arrastar só o
+     * balão do gesto. Continua sem esperar o toque duplo — o soltar chega na
+     * hora.
+     */
+    private fun alternarControlesNoToque() {
+        if (controlsVisible) {
+            // A margem é para o segundo toque de um toque duplo não desfazer
+            // o que o primeiro fez.
+            if (System.currentTimeMillis() - controlsVisibleSince > 300) {
+                setControlsVisible(false)
+            }
+        } else {
+            setControlsVisible(true)
+            scheduleControlsHide()
+        }
+    }
+
     private fun detectarToqueDuplo(ev: MotionEvent) {
         val agora = System.currentTimeMillis()
         val intervalo = ViewConfiguration.getDoubleTapTimeout().toLong()
         if (agora - lastTapAt < intervalo && abs(ev.x - lastTapX) < 120) {
             lastTapAt = 0
+            toqueFoiDuplo = true
             cancelarToqueLongo()
             val terco = ui.root.width / 3f
             when {
@@ -1384,6 +1404,8 @@ class PlayerActivity : Activity() {
         holdActive = true
         rateBeforeHold = engine.rate
         engine.rate = prefs.holdSpeed
+        // Na tela, só a velocidade: o filme correndo é o que se quer ver.
+        if (controlsVisible) setControlsVisible(false)
         mostrarAceleracao()
     }
 
