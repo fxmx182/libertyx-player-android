@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -170,6 +172,11 @@ private fun ComPermissao(bloqueia: Boolean = true, conteudo: @Composable () -> U
             )
             Button(onClick = { pedido.launch(permissao) }, modifier = Modifier.padding(top = 20.dp)) {
                 Text(stringResource(R.string.permitir))
+            }
+            // Quem recusou — e o revisor da loja num aparelho vazio — ainda
+            // tem o que tocar sem precisar de vídeo nenhum aqui.
+            Box(Modifier.padding(top = 36.dp).widthIn(max = 460.dp)) {
+                com.mauricio.libertyx.library.CartaoDeDemonstracao()
             }
         }
     }

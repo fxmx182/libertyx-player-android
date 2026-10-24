@@ -836,7 +836,7 @@ private fun Vazio(onOpenServers: () -> Unit) {
 
 /** O filme aberto que toca da internet, para o app não começar sem nada. */
 @Composable
-private fun CartaoDeDemonstracao() {
+internal fun CartaoDeDemonstracao() {
     val contexto = LocalContext.current
     Row(
         Modifier.fillMaxWidth().tvFocus(LabTheme.radiusCard, scale = 1.02f)
