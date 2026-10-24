@@ -61,6 +61,8 @@ sem ela o build para.
 - Reenvio, como no Folder: APK1 FireTV 4275182 no lugar do 4210722 (só os Fire
   TV) + APK2 FireTablet 4275181 (só os tablets Fire), com as instruções abaixo.
 
+- **Reenviado em 2026-10-25** (24/10 no horário dos EUA) com o OK do dono: *Submitted*, previsão 29/10/2026.
+
 Instruções para o revisor (o campo estava **vazio** no console ao reabrir em 25/10 — o texto de 20/10 talvez nunca tenha sido salvo; agora salvo e conferido):
 
 ```
