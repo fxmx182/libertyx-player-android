@@ -71,7 +71,7 @@ NO LOGIN, NO ACCOUNT. LibertyX Player has no user accounts and no sign-in of any
 3) In the player: LEFT/RIGHT seek; focus the progress bar for fine seeking; the MENU button opens audio track, subtitles (Sintel has 10 languages), speed, aspect ratio, sleep timer and frame capture. BACK closes the player.
 4) Videos on the device or a USB drive appear in rows on the home screen.
 
-Fire tablets (APK2): same app with a touch interface. If there are no videos, or if video access is denied, the screen shows "Play a demo video" (Sintel). Tap the video to show the controls; swipe left/right to seek.
+Fire tablets (APK2): same app with a touch interface. If there are no videos, or if video access is denied, the screen shows "Play a demo video" (Sintel). Tap the video to show the player controls.
 
 About "Connect to your home server": this is OPTIONAL. It lets users play files from their own PC or NAS shared folder (SMB) on the home network. The user name/password fields there are the user's own Windows/NAS share credentials (guest also works), not an account with us. It cannot be tested without a file server on the same local network, and everything else in the app works without it.
 
