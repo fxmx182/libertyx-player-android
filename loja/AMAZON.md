@@ -46,6 +46,34 @@ sem ela o build para.
   *Approved*; export compliance marcada; app *Submitted*, previsão da Amazon
   para entrar na loja: 25/10/2026.
 
+## Recusa, contestação e reenvio (out/2026)
+
+- 23/10: recusado por Content Policy (título "LibertyX" parecido com o app de
+  bitcoin da Moon, Inc.). Contestação no case 22773801411, citando o Folder
+  aprovado com a mesma marca → **25/10: nome liberado.**
+- Mas o revisor parou no teste funcional: "o app exige login e não há
+  credenciais de teste". A Fire TV dele não tem vídeo, e o único caminho era o
+  servidor SMB (usuário/senha). Resposta: commit c681dbf — tela vazia com o
+  **vídeo de demonstração Sintel** (Blender, CC-BY, MKV 1080p com AC-3 e 10
+  legendas) tocando de download.blender.org, e texto dizendo que não há conta.
+- Reenvio: APK1 FireTV 4275092 no lugar do 4210722 (o FireTablet 4275091 continua
+  esperando a aprovação da TV), com as instruções abaixo.
+
+Instruções para o revisor (substituem as antigas):
+
+```
+NO LOGIN, NO ACCOUNT. LibertyX Player has no user accounts and no sign-in of any kind. Nothing needs credentials to be tested.
+
+1) Open the app. Android asks for access to videos: allow it (or not; both work).
+2) If the Fire TV has no videos of its own, the home screen shows "No videos on this device" and a "Demo" row with the open movie Sintel (Blender Foundation, CC-BY). Select it: it streams from download.blender.org, so the device only needs internet.
+3) In the player: LEFT/RIGHT seek; focus the progress bar for fine seeking; the MENU button opens audio track, subtitles (Sintel has 10 languages), speed, aspect ratio, sleep timer and frame capture. BACK closes the player.
+4) Videos on the device or a USB drive appear in rows on the home screen.
+
+About "Connect to your home server": this is OPTIONAL. It lets users play files from their own PC or NAS shared folder (SMB) on the home network. The user name/password fields there are the user's own Windows/NAS share credentials (guest also works), not an account with us. It cannot be tested without a file server on the same local network, and everything else in the app works without it.
+
+In-app purchase: entitlement SKU libertyx_pro ("LibertyX Pro", US$ 4.99, one-time). The first 7 days after install are a free trial with all Pro features unlocked. The purchase screen is the "LibertyX Pro" tile at the bottom of the home screen; "Restore purchase" re-checks. The app collects no data and shows no ads.
+```
+
 ## Testar a compra antes
 
 O App Tester (sandbox) só funciona com build depurável; o log do SDK diz
