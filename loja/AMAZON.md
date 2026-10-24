@@ -61,21 +61,21 @@ sem ela o build para.
 - Reenvio, como no Folder: APK1 FireTV 4275182 no lugar do 4210722 (só os Fire
   TV) + APK2 FireTablet 4275181 (só os tablets Fire), com as instruções abaixo.
 
-Instruções para o revisor (substituem as antigas):
+Instruções para o revisor (o campo estava **vazio** no console ao reabrir em 25/10 — o texto de 20/10 talvez nunca tenha sido salvo; agora salvo e conferido):
 
 ```
 NO LOGIN, NO ACCOUNT. LibertyX Player has no user accounts and no sign-in of any kind. Nothing needs credentials to be tested.
 
 1) Open the app. Android asks for access to videos: allow it (or not; both work).
 2) If the Fire TV has no videos of its own, the home screen shows "No videos on this device" and a "Demo" row with the open movie Sintel (Blender Foundation, CC-BY). Select it: it streams from download.blender.org, so the device only needs internet.
-3) In the player: LEFT/RIGHT seek; focus the progress bar for fine seeking; the MENU button opens audio track, subtitles (Sintel has 10 languages), speed, aspect ratio, sleep timer and frame capture. BACK closes the player.
+3) In the player: LEFT/RIGHT seek; focus the progress bar for fine seeking; the MENU button opens audio track, subtitles (Sintel has 10 languages), speed, aspect ratio and the other player tools. BACK closes the player.
 4) Videos on the device or a USB drive appear in rows on the home screen.
 
 Fire tablets (APK2): same app with a touch interface. If there are no videos, or if video access is denied, the screen shows "Play a demo video" (Sintel). Tap the video to show the player controls.
 
 About "Connect to your home server": this is OPTIONAL. It lets users play files from their own PC or NAS shared folder (SMB) on the home network. The user name/password fields there are the user's own Windows/NAS share credentials (guest also works), not an account with us. It cannot be tested without a file server on the same local network, and everything else in the app works without it.
 
-In-app purchase: entitlement SKU libertyx_pro ("LibertyX Pro", US$ 4.99, one-time). The first 7 days after install are a free trial with all Pro features unlocked. The purchase screen is the "LibertyX Pro" tile at the bottom of the home screen; "Restore purchase" re-checks. The app collects no data and shows no ads.
+In-app purchase: entitlement SKU libertyx_pro ("LibertyX Pro", US$ 4.99, one-time). The first 7 days after install are a free trial with all Pro features unlocked. Purchase screen: on Fire TV, the "LibertyX Pro" tile at the bottom of the home screen; on Fire tablets, Library > Display options > LibertyX Pro. "Restore purchase" re-checks. The app collects no data and shows no ads.
 ```
 
 ## Testar a compra antes
