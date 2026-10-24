@@ -82,7 +82,9 @@
     <string name="gerenciar_servidores">Administrar servidores</string>
     <string name="parou_em">te quedaste en %1$s</string>
     <string name="tv_sem_videos">No hay videos en este dispositivo</string>
-    <string name="tv_sem_videos_explica">En un TV box es lo normal: la colección está en el servidor. Conecta el servidor de casa arriba y aparece aquí.</string>
+    <string name="tv_sem_videos_explica">En un TV box es lo normal. Los videos del dispositivo o de un pendrive aparecen aquí; para reproducir la colección de tu PC o NAS, conecta el servidor de casa arriba (no hace falta cuenta). O prueba la demostración de abajo.</string>
+    <string name="demonstracao">Demostración</string>
+    <string name="demonstracao_tocar">Reproducir un video de demostración</string>
     <string name="pausado_temporizador">En pausa por el temporizador</string>
     <string name="ajustar">Ajustar</string>
     <string name="preencher">Rellenar</string>

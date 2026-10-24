@@ -83,7 +83,9 @@
     <string name="gerenciar_servidores">Manage servers</string>
     <string name="parou_em">stopped at %1$s</string>
     <string name="tv_sem_videos">No videos on this device</string>
-    <string name="tv_sem_videos_explica">On a TV box that is normal — the collection lives on the server. Connect your home server above and it shows up here.</string>
+    <string name="tv_sem_videos_explica">On a TV box that is normal. Videos on this device or a USB drive show up here; to play the collection on your PC or NAS, connect your home server above (no account needed). Or try the demo below.</string>
+    <string name="demonstracao">Demo</string>
+    <string name="demonstracao_tocar">Play a demo video</string>
     <string name="pausado_temporizador">Paused by the sleep timer</string>
     <string name="ajustar">Fit</string>
     <string name="preencher">Fill</string>

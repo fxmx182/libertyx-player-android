@@ -65,6 +65,8 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.runtime.collectAsState
 import com.mauricio.libertyx.pro.ProActivity
 import com.mauricio.libertyx.core.Pro
+import com.mauricio.libertyx.core.Demonstracao
+import androidx.compose.ui.res.painterResource
 
 /**
  * A tela inicial na televisão.
@@ -133,6 +135,17 @@ fun TvHomeScreen(onOpenServers: () -> Unit) {
             }
             if (locais.isEmpty()) {
                 item { Vazio() }
+                item {
+                    Faixa(stringResource(R.string.demonstracao)) {
+                        item {
+                            CartaoVideo(
+                                item = Demonstracao.item,
+                                capa = R.drawable.demo_sintel,
+                                legenda = Demonstracao.CREDITO,
+                            ) { Playback.start(contexto, Demonstracao.item, emptyList()) }
+                        }
+                    }
+                }
             }
         }
 
@@ -216,7 +229,13 @@ private val CARD_W = 232.dp
 private val CARD_H = 130.dp
 
 @Composable
-private fun CartaoVideo(item: MediaItem, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun CartaoVideo(
+    item: MediaItem,
+    modifier: Modifier = Modifier,
+    capa: Int? = null,
+    legenda: String? = null,
+    onClick: () -> Unit,
+) {
     val contexto = LocalContext.current
     val imagem by produceState<android.graphics.Bitmap?>(
         initialValue = Thumbnails.cached(item), key1 = item.id,
@@ -235,7 +254,14 @@ private fun CartaoVideo(item: MediaItem, modifier: Modifier = Modifier, onClick:
             contentAlignment = Alignment.Center,
         ) {
             val pronta = imagem
-            if (pronta != null) {
+            if (capa != null) {
+                Image(
+                    painter = painterResource(capa),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            } else if (pronta != null) {
                 Image(
                     bitmap = pronta.asImageBitmap(),
                     contentDescription = null,
@@ -274,8 +300,8 @@ private fun CartaoVideo(item: MediaItem, modifier: Modifier = Modifier, onClick:
             ResumeStore.get(contexto).position(item.origin.resumeKey)
         }
         Text(
-            if (retomada != null) stringResource(R.string.parou_em, TimeFormat.clock(retomada)) else " ",
-            color = LabTheme.accent,
+            if (retomada != null) stringResource(R.string.parou_em, TimeFormat.clock(retomada)) else legenda ?: " ",
+            color = if (retomada != null) LabTheme.accent else LabTheme.muted,
             fontSize = 12.sp,
             maxLines = 1,
         )

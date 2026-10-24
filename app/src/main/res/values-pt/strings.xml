@@ -82,7 +82,9 @@
     <string name="gerenciar_servidores">Gerenciar servidores</string>
     <string name="parou_em">parou em %1$s</string>
     <string name="tv_sem_videos">Nenhum vídeo neste aparelho</string>
-    <string name="tv_sem_videos_explica">Numa caixinha de TV isso é o normal — o acervo mora no servidor. Conecte o servidor de casa acima e ele aparece aqui.</string>
+    <string name="tv_sem_videos_explica">Numa caixinha de TV isso é o normal. Vídeos do aparelho ou de um pendrive aparecem aqui; para tocar o acervo do seu PC ou NAS, conecte o servidor de casa acima (não precisa de conta). Ou experimente a demonstração abaixo.</string>
+    <string name="demonstracao">Demonstração</string>
+    <string name="demonstracao_tocar">Tocar um vídeo de demonstração</string>
     <string name="pausado_temporizador">Pausado pelo temporizador</string>
     <string name="ajustar">Ajustar</string>
     <string name="preencher">Preencher</string>
