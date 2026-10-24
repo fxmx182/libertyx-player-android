@@ -56,8 +56,10 @@ sem ela o build para.
   servidor SMB (usuário/senha). Resposta: commit c681dbf — tela vazia com o
   **vídeo de demonstração Sintel** (Blender, CC-BY, MKV 1080p com AC-3 e 10
   legendas) tocando de download.blender.org, e texto dizendo que não há conta.
-- Reenvio: APK1 FireTV 4275092 no lugar do 4210722 (o FireTablet 4275091 continua
-  esperando a aprovação da TV), com as instruções abaixo.
+- Commit 403655c: a demonstração também aparece na tela de permissão negada do
+  celular/tablet (antes era um beco só com "Permitir").
+- Reenvio, como no Folder: APK1 FireTV 4275182 no lugar do 4210722 (só os Fire
+  TV) + APK2 FireTablet 4275181 (só os tablets Fire), com as instruções abaixo.
 
 Instruções para o revisor (substituem as antigas):
 
@@ -68,6 +70,8 @@ NO LOGIN, NO ACCOUNT. LibertyX Player has no user accounts and no sign-in of any
 2) If the Fire TV has no videos of its own, the home screen shows "No videos on this device" and a "Demo" row with the open movie Sintel (Blender Foundation, CC-BY). Select it: it streams from download.blender.org, so the device only needs internet.
 3) In the player: LEFT/RIGHT seek; focus the progress bar for fine seeking; the MENU button opens audio track, subtitles (Sintel has 10 languages), speed, aspect ratio, sleep timer and frame capture. BACK closes the player.
 4) Videos on the device or a USB drive appear in rows on the home screen.
+
+Fire tablets (APK2): same app with a touch interface. If there are no videos, or if video access is denied, the screen shows "Play a demo video" (Sintel). Tap the video to show the controls; swipe left/right to seek.
 
 About "Connect to your home server": this is OPTIONAL. It lets users play files from their own PC or NAS shared folder (SMB) on the home network. The user name/password fields there are the user's own Windows/NAS share credentials (guest also works), not an account with us. It cannot be tested without a file server on the same local network, and everything else in the app works without it.
 
