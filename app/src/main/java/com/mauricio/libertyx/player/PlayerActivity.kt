@@ -202,7 +202,8 @@ class PlayerActivity : Activity() {
         // Arquivo do servidor é Pro — e chega aqui por mais de um caminho: a
         // pasta de rede, os recentes da biblioteca e o "abrir com" de outro
         // app. A porta fica no player para valer para todos.
-        val daRede = atual.origin is MediaOrigin.Smb ||
+        val daRede = atual.origin is MediaOrigin.Smb || atual.origin is MediaOrigin.WebDav ||
+            atual.origin is MediaOrigin.Midia ||
             (atual.origin as? MediaOrigin.Remote)?.uri?.scheme.equals("smb", ignoreCase = true)
         if (daRede && !ProActivity.exigir(this, Pro.Recurso.REDE)) {
             finish()

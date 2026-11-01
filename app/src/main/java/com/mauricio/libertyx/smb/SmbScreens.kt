@@ -87,6 +87,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import com.mauricio.libertyx.core.Device
+import com.mauricio.libertyx.rede.ContaDeRede
+import com.mauricio.libertyx.rede.ContasDeRede
+import com.mauricio.libertyx.rede.EditorDeConta
+import com.mauricio.libertyx.rede.EscolhaDeTipoDeServidor
+import com.mauricio.libertyx.rede.icone
 import com.mauricio.libertyx.core.LabTheme
 import com.mauricio.libertyx.core.Escala
 import com.mauricio.libertyx.core.MediaItem
@@ -101,10 +106,19 @@ import androidx.compose.ui.res.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SmbServersScreen(onBack: () -> Unit, onOpen: (SmbServer) -> Unit) {
+fun SmbServersScreen(
+    onBack: () -> Unit,
+    onOpen: (SmbServer) -> Unit,
+    onOpenConta: (ContaDeRede) -> Unit,
+) {
     val contexto = LocalContext.current
     val store = remember { SmbServerStore.get(contexto) }
     var servidores by remember { mutableStateOf(store.servers) }
+    val lojaDeContas = remember { ContasDeRede.get(contexto) }
+    var contas by remember { mutableStateOf(lojaDeContas.contas) }
+    var escolhendoTipo by remember { mutableStateOf(false) }
+    // WebDAV, Jellyfin e Emby: o tipo e, ao editar, a conta.
+    var editandoConta by remember { mutableStateOf<Pair<ContaDeRede.Tipo, ContaDeRede?>?>(null) }
     var editando by remember { mutableStateOf<SmbServer?>(null) }
     // Não é um sim/não: guarda os valores já preenchidos, para um servidor
     // achado na rede chegar ao formulário com nome e endereço prontos.
@@ -163,7 +177,7 @@ fun SmbServersScreen(onBack: () -> Unit, onOpen: (SmbServer) -> Unit) {
                     // mostra e inalcançável — pior que não existir. Lá quem
                     // adiciona é a primeira linha da lista.
                     if (!Device.isTv(contexto)) {
-                        IconButton(onClick = { criando = SmbServer(name = "", host = "") }) {
+                        IconButton(onClick = { escolhendoTipo = true }) {
                             Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.adicionar_servidor))
                         }
                     }
@@ -197,7 +211,7 @@ fun SmbServersScreen(onBack: () -> Unit, onOpen: (SmbServer) -> Unit) {
                         .focusRequester(primeiroFoco)
                         .tvFocus(LabTheme.radiusCard)
                         .clip(RoundedCornerShape(LabTheme.radiusCard)).labCard()
-                        .clickable { criando = SmbServer(name = "", host = "") }
+                        .clickable { escolhendoTipo = true }
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -207,7 +221,7 @@ fun SmbServersScreen(onBack: () -> Unit, onOpen: (SmbServer) -> Unit) {
                 }
             }
 
-            if (servidores.isEmpty()) {
+            if (servidores.isEmpty() && contas.isEmpty()) {
                 item {
                     Text(
                         stringResource(R.string.sem_servidores),
@@ -244,6 +258,41 @@ fun SmbServersScreen(onBack: () -> Unit, onOpen: (SmbServer) -> Unit) {
                         onClick = {
                             store.remove(servidor)
                             servidores = store.servers
+                        },
+                        modifier = Modifier.tvFocus(24.dp),
+                    ) {
+                        Icon(Icons.Filled.Delete, stringResource(R.string.remover), tint = LabTheme.muted)
+                    }
+                }
+            }
+
+            items(contas, key = { it.id }) { conta ->
+                Row(
+                    Modifier.fillMaxWidth().padding(bottom = 10.dp)
+                        .tvFocus(LabTheme.radiusCard)
+                        .clip(RoundedCornerShape(LabTheme.radiusCard)).labCard()
+                        .clickable { onOpenConta(conta) }
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(conta.tipo.icone, null, tint = LabTheme.accent, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(conta.nome, color = LabTheme.text, fontWeight = FontWeight.Medium)
+                        Text(
+                            listOf(conta.tipo.nome, conta.enderecoCurto, conta.usuario)
+                                .filter { it.isNotEmpty() }.joinToString(" · "),
+                            color = LabTheme.muted, fontSize = 12.sp,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    IconButton(onClick = { editandoConta = conta.tipo to conta }, modifier = Modifier.tvFocus(24.dp)) {
+                        Icon(Icons.Filled.Edit, stringResource(R.string.editar), tint = LabTheme.muted)
+                    }
+                    IconButton(
+                        onClick = {
+                            lojaDeContas.remover(conta)
+                            contas = lojaDeContas.contas
                         },
                         modifier = Modifier.tvFocus(24.dp),
                     ) {
@@ -311,6 +360,29 @@ fun SmbServersScreen(onBack: () -> Unit, onOpen: (SmbServer) -> Unit) {
             }
         }
     }
+    }
+
+    if (escolhendoTipo) {
+        EscolhaDeTipoDeServidor(
+            onEscolher = { tipo ->
+                escolhendoTipo = false
+                if (tipo == null) criando = SmbServer(name = "", host = "")
+                else editandoConta = tipo to null
+            },
+            onCancel = { escolhendoTipo = false },
+        )
+    }
+
+    editandoConta?.let { (tipo, conta) ->
+        EditorDeConta(
+            tipo = tipo,
+            conta = conta,
+            onCancel = { editandoConta = null },
+            onSalvo = {
+                contas = lojaDeContas.contas
+                editandoConta = null
+            },
+        )
     }
 
     val emEdicao = editando ?: criando

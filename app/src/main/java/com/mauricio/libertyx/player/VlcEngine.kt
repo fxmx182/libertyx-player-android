@@ -11,6 +11,7 @@ import android.view.TextureView
 import android.view.ViewGroup
 import com.mauricio.libertyx.core.MediaItem
 import com.mauricio.libertyx.core.MediaOrigin
+import com.mauricio.libertyx.rede.ContasDeRede
 import com.mauricio.libertyx.smb.SmbBrowser
 import com.mauricio.libertyx.smb.SmbServerStore
 import org.videolan.libvlc.Media
@@ -127,7 +128,7 @@ class VlcEngine(private val context: Context) {
     /** De onde vem o que está tocando: no servidor tudo demora mais. */
     private var origemAtual: MediaOrigin? = null
     private val naRede: Boolean
-        get() = origemAtual is MediaOrigin.Smb || origemAtual is MediaOrigin.Remote
+        get() = origemAtual != null && origemAtual !is MediaOrigin.Local
 
     /**
      * Destino de uma busca que o VLC ainda não alcançou.
@@ -249,6 +250,9 @@ class VlcEngine(private val context: Context) {
                         .forEach { m.addOption(it) }
                 }
             }
+            is MediaOrigin.WebDav, is MediaOrigin.Midia ->
+                Media(libVlc, ContasDeRede.uriDeReproducao(context, origem)
+                    ?: error(Textos.get(R.string.erro_servidor_sumiu)))
         }
 
         origemAtual = item.origin

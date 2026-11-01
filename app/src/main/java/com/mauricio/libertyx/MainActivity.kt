@@ -41,15 +41,17 @@ import com.mauricio.libertyx.core.LabTheme
 import com.mauricio.libertyx.core.LibertyXTheme
 import com.mauricio.libertyx.library.LibraryScreen
 import com.mauricio.libertyx.tv.TvHomeScreen
+import com.mauricio.libertyx.rede.ContaDeRede
+import com.mauricio.libertyx.rede.ContaScreen
 import com.mauricio.libertyx.smb.SmbBrowserScreen
 import com.mauricio.libertyx.smb.SmbServer
 import com.mauricio.libertyx.smb.SmbServersScreen
 import androidx.compose.ui.res.stringResource
 
 /**
- * A navegação do app, em três telas.
+ * A navegação do app, em poucas telas.
  *
- * Sem biblioteca de navegação: são três destinos e um deles é modal. Uma
+ * Sem biblioteca de navegação: são poucos destinos e um deles é modal. Uma
  * dependência a mais para isso trocaria trinta linhas legíveis por um grafo,
  * um `NavController` e um contrato de argumentos serializados.
  */
@@ -57,6 +59,7 @@ private sealed interface Screen {
     data object Library : Screen
     data object Servers : Screen
     data class Browser(val server: SmbServer) : Screen
+    data class Conta(val conta: ContaDeRede) : Screen
 }
 
 class MainActivity : ComponentActivity() {
@@ -115,6 +118,11 @@ private fun App() {
         is Screen.Servers -> SmbServersScreen(
             onBack = { tela = Screen.Library },
             onOpen = { servidor -> tela = Screen.Browser(servidor) },
+            onOpenConta = { conta -> tela = Screen.Conta(conta) },
+        )
+        is Screen.Conta -> ContaScreen(
+            conta = atual.conta,
+            onBack = { tela = Screen.Servers },
         )
         is Screen.Browser -> SmbBrowserScreen(
             server = atual.server,

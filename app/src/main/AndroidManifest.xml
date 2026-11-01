@@ -54,6 +54,7 @@
         android:largeHeap="true"
         android:theme="@style/Theme.LibertyX"
         android:enableOnBackInvokedCallback="true"
+        android:usesCleartextTraffic="true"
         tools:targetApi="36">
 
         <activity

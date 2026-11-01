@@ -29,8 +29,8 @@
     <string name="servidores">Servidores</string>
     <string name="exibicao">Visualización</string>
     <string name="procurar_de_novo">Buscar de nuevo</string>
-    <string name="servidores_smb">Servidores SMB</string>
-    <string name="servidores_smb_sub">Los videos de la computadora o del NAS de casa</string>
+    <string name="servidores_smb">Servidores</string>
+    <string name="servidores_smb_sub">SMB, WebDAV, Jellyfin y Emby</string>
     <string name="faltam">quedan %1$s</string>
     <string name="em_andamento">en curso</string>
     <string name="nenhum_video">No hay videos en el dispositivo</string>
@@ -303,4 +303,20 @@
     <string name="chave_web_botao">Activar en la TV</string>
     <string name="chave_web_ok">¡Listo! Pro está activo en tu TV. Puedes cerrar esta página.</string>
     <string name="chave_comprar">¿Aún no tienes clave? Cómprala por Telegram</string>
+
+    <!-- WebDAV, Jellyfin e Emby -->
+    <string name="erro_credenciais">El servidor rechazó el usuario o la contraseña.</string>
+    <string name="erro_nao_e_pasta">La dirección no apunta a una carpeta de este servidor.</string>
+    <string name="erro_http">El servidor respondió con el error %1$d.</string>
+    <string name="erro_endereco_invalido">Dirección no válida.</string>
+    <string name="erro_nao_e_webdav">La dirección respondió, pero no es una carpeta WebDAV.</string>
+    <string name="erro_nao_e_servidor">No hay un servidor %1$s en esa dirección.</string>
+    <string name="tipo_de_servidor">¿Qué tipo de servidor?</string>
+    <string name="tipo_smb">SMB (Windows, NAS, Samba)</string>
+    <string name="tipo_webdav">WebDAV (Nextcloud)</string>
+    <string name="novo_servidor_tipo">Nuevo servidor %1$s</string>
+    <string name="endereco_url">Dirección</string>
+    <string name="senha_entrar_de_novo">Contraseña (solo para volver a entrar)</string>
+    <string name="conta_webdav_explica">En Nextcloud basta con la dirección del servidor: la app completa la ruta de tus archivos. La contraseña queda cifrada en el dispositivo.</string>
+    <string name="conta_midia_explica">La contraseña solo sirve para entrar. La app guarda la clave de acceso que devuelve el servidor, cifrada en el dispositivo, y reproduce los archivos originales, sin conversión.</string>
 </resources>

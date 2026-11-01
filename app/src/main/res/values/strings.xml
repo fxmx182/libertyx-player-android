@@ -30,8 +30,8 @@
     <string name="servidores">Servers</string>
     <string name="exibicao">Display</string>
     <string name="procurar_de_novo">Scan again</string>
-    <string name="servidores_smb">SMB servers</string>
-    <string name="servidores_smb_sub">Videos from your computer or home NAS</string>
+    <string name="servidores_smb">Servers</string>
+    <string name="servidores_smb_sub">SMB, WebDAV, Jellyfin and Emby</string>
     <string name="faltam">%1$s left</string>
     <string name="em_andamento">in progress</string>
     <string name="nenhum_video">No videos on this device</string>
@@ -304,4 +304,20 @@
     <string name="chave_web_botao">Activate on the TV</string>
     <string name="chave_web_ok">Done! Pro is active on your TV. You can close this page.</string>
     <string name="chave_comprar">Don\'t have a key yet? Buy one on Telegram</string>
+
+    <!-- WebDAV, Jellyfin e Emby -->
+    <string name="erro_credenciais">The server rejected the user name or password.</string>
+    <string name="erro_nao_e_pasta">The address does not point to a folder on this server.</string>
+    <string name="erro_http">The server answered with error %1$d.</string>
+    <string name="erro_endereco_invalido">Invalid address.</string>
+    <string name="erro_nao_e_webdav">The address answered, but it is not a WebDAV folder.</string>
+    <string name="erro_nao_e_servidor">There is no %1$s server at that address.</string>
+    <string name="tipo_de_servidor">Which kind of server?</string>
+    <string name="tipo_smb">SMB (Windows, NAS, Samba)</string>
+    <string name="tipo_webdav">WebDAV (Nextcloud)</string>
+    <string name="novo_servidor_tipo">New %1$s server</string>
+    <string name="endereco_url">Address</string>
+    <string name="senha_entrar_de_novo">Password (only to sign in again)</string>
+    <string name="conta_webdav_explica">For Nextcloud the server address is enough: the app fills in the path to your files. The password is kept encrypted on the device.</string>
+    <string name="conta_midia_explica">The password is only used to sign in. The app keeps the access key the server returns, encrypted on the device, and plays the original files, without conversion.</string>
 </resources>

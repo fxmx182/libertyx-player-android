@@ -403,6 +403,11 @@ dependencies {
     // sem esses dois campos.
     implementation("com.hierynomus:smbj:0.14.0")
 
+    // Listar pasta no WebDAV é `PROPFIND`, que o `HttpURLConnection` do
+    // Android recusa por não ser um método do HTTP comum. O mesmo cliente
+    // fala com o Jellyfin e o Emby.
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
     // A compra única do Pro. Sem servidor: a Play guarda a compra na conta
     // Google, e o app só pergunta a ela.
     "debugImplementation"(libs.billing)

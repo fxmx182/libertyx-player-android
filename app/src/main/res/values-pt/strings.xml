@@ -29,8 +29,8 @@
     <string name="servidores">Servidores</string>
     <string name="exibicao">Exibição</string>
     <string name="procurar_de_novo">Procurar de novo</string>
-    <string name="servidores_smb">Servidores SMB</string>
-    <string name="servidores_smb_sub">Os vídeos do computador ou do NAS de casa</string>
+    <string name="servidores_smb">Servidores</string>
+    <string name="servidores_smb_sub">SMB, WebDAV, Jellyfin e Emby</string>
     <string name="faltam">faltam %1$s</string>
     <string name="em_andamento">em andamento</string>
     <string name="nenhum_video">Nenhum vídeo no aparelho</string>
@@ -303,4 +303,20 @@
     <string name="chave_web_botao">Ativar na TV</string>
     <string name="chave_web_ok">Pronto! O Pro está ativo na sua TV. Pode fechar esta página.</string>
     <string name="chave_comprar">Ainda não tem chave? Compre pelo Telegram</string>
+
+    <!-- WebDAV, Jellyfin e Emby -->
+    <string name="erro_credenciais">Usuário ou senha recusados pelo servidor.</string>
+    <string name="erro_nao_e_pasta">O endereço não aponta para uma pasta deste servidor.</string>
+    <string name="erro_http">O servidor respondeu com o erro %1$d.</string>
+    <string name="erro_endereco_invalido">Endereço inválido.</string>
+    <string name="erro_nao_e_webdav">O endereço respondeu, mas não é uma pasta WebDAV.</string>
+    <string name="erro_nao_e_servidor">Não há um servidor %1$s nesse endereço.</string>
+    <string name="tipo_de_servidor">Que tipo de servidor?</string>
+    <string name="tipo_smb">SMB (Windows, NAS, Samba)</string>
+    <string name="tipo_webdav">WebDAV (Nextcloud)</string>
+    <string name="novo_servidor_tipo">Novo servidor %1$s</string>
+    <string name="endereco_url">Endereço</string>
+    <string name="senha_entrar_de_novo">Senha (só para entrar de novo)</string>
+    <string name="conta_webdav_explica">No Nextcloud basta o endereço do servidor: o app completa o caminho dos seus arquivos. A senha fica cifrada no aparelho.</string>
+    <string name="conta_midia_explica">A senha serve só para entrar. O app guarda a chave de acesso que o servidor devolve, cifrada no aparelho, e toca os arquivos originais, sem conversão.</string>
 </resources>

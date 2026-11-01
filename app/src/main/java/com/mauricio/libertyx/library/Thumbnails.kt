@@ -11,6 +11,8 @@ import android.util.Size
 import androidx.compose.runtime.mutableIntStateOf
 import com.mauricio.libertyx.core.MediaItem
 import com.mauricio.libertyx.core.MediaOrigin
+import com.mauricio.libertyx.rede.ContasDeRede
+import com.mauricio.libertyx.rede.ServidorDeMidia
 import com.mauricio.libertyx.smb.SmbBrowser
 import com.mauricio.libertyx.smb.SmbServerStore
 import kotlinx.coroutines.Dispatchers
@@ -91,7 +93,26 @@ object Thumbnails {
                     imagem?.also { cache.put(item.id, it) }
                 }
             }
-            is MediaOrigin.Smb -> doServidor(context, item, origem)
+            is MediaOrigin.Smb -> doServidor(context, item) {
+                val loja = SmbServerStore.get(context)
+                val servidor = loja.byId(origem.serverId) ?: return@doServidor null
+                SmbBrowser.uri(servidor, origem.share, origem.path) to
+                    SmbBrowser.credenciais(servidor, loja.password(servidor))
+            }
+            // HTTP comum com busca por faixa: o VLC tira o quadro como no SMB.
+            is MediaOrigin.WebDav -> doServidor(context, item) {
+                ContasDeRede.uriDeReproducao(context, origem)?.let { it to emptyList() }
+            }
+            // O servidor já tem a imagem pronta; ler o vídeo só para isso seria
+            // tráfego à toa.
+            is MediaOrigin.Midia -> {
+                if (item.id in falharam) return null
+                val loja = ContasDeRede.get(context)
+                val conta = loja.byId(origem.contaId) ?: return null
+                limiteDaRede.withPermit { ServidorDeMidia(conta, loja.segredo(conta)).imagem(origem.itemId) }
+                    ?.also { cache.put(item.id, it) }
+                    ?: run { falharam += item.id; null }
+            }
             is MediaOrigin.Remote -> null
         }
     }
@@ -120,7 +141,11 @@ object Thumbnails {
         return resultado?.imagem
     }
 
-    private suspend fun doServidor(context: Context, item: MediaItem, origem: MediaOrigin.Smb): Bitmap? {
+    private suspend fun doServidor(
+        context: Context,
+        item: MediaItem,
+        endereco: () -> Pair<Uri, List<String>>?,
+    ): Bitmap? {
         if (item.id in falharam) return null
 
         val arquivo = File(context.cacheDir, "miniaturas/${hash(item.id)}.jpg")
@@ -137,12 +162,7 @@ object Thumbnails {
             emReproducao.first { !it }
             cache.get(item.id)?.let { return@withPermit it }
 
-            val (uri, credenciais) = withContext(Dispatchers.IO) {
-                val loja = SmbServerStore.get(context)
-                val servidor = loja.byId(origem.serverId) ?: return@withContext null
-                SmbBrowser.uri(servidor, origem.share, origem.path) to
-                    SmbBrowser.credenciais(servidor, loja.password(servidor))
-            } ?: return@withPermit null
+            val (uri, credenciais) = withContext(Dispatchers.IO) { endereco() } ?: return@withPermit null
 
             val resultado = QuadroDoVlc.extrair(context, uri, credenciais)
             if (resultado == null) {

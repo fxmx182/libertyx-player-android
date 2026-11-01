@@ -22,6 +22,15 @@ sealed interface MediaOrigin {
 
     /** HTTP(S) direto. */
     data class Remote(val uri: Uri) : MediaOrigin
+
+    /**
+     * Arquivo num servidor WebDAV (Nextcloud e afins). O caminho é o do
+     * servidor, decodificado; endereço e senha vêm da conta na hora de tocar.
+     */
+    data class WebDav(val contaId: String, val caminho: String) : MediaOrigin
+
+    /** Vídeo de um Jellyfin ou Emby, pelo id do item no servidor. */
+    data class Midia(val contaId: String, val itemId: String) : MediaOrigin
 }
 
 /**
@@ -37,6 +46,8 @@ val MediaOrigin.resumeKey: String
         is MediaOrigin.Local -> "file:" + (path?.substringAfterLast('/') ?: uri.lastPathSegment.orEmpty())
         is MediaOrigin.Smb -> "smb:$host/$share/$path"
         is MediaOrigin.Remote -> "url:$uri"
+        is MediaOrigin.WebDav -> "webdav:$contaId$caminho"
+        is MediaOrigin.Midia -> "midia:$contaId/$itemId"
     }
 
 /** Um item reproduzível, já resolvido para exibição. */
