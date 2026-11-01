@@ -178,38 +178,52 @@ fun EditorDeConta(
     else "http://192.168.0.10:8096"
     val valido = endereco.isNotBlank() && (!tipo.ehServidorDeMidia || usuario.isNotBlank())
 
+    suspend fun salvarEm(texto: String) {
+        var nova = (conta ?: ContaDeRede(tipo = tipo, nome = "", endereco = ""))
+            .copy(endereco = texto, usuario = usuario.trim())
+        nova = nova.copy(nome = nome.trim().ifEmpty { nova.enderecoCurto })
+
+        if (tipo == ContaDeRede.Tipo.WEBDAV) {
+            nova = testarWebDav(nova, senha)
+            loja.salvar(nova, senha)
+            return
+        }
+        // Editar só o apelido não pede a senha de novo; trocar o servidor ou o
+        // usuário pede, porque o token antigo não vale lá.
+        val mesmoAcesso = conta != null && conta.endereco == nova.endereco && conta.usuario == nova.usuario
+        if (mesmoAcesso && senha.isEmpty()) {
+            loja.salvar(nova, null)
+        } else {
+            val (idUsuario, token) = ServidorDeMidia.entrar(nova, senha)
+            loja.salvar(nova.copy(idNoServidor = idUsuario), token)
+        }
+    }
+
     fun salvar() {
         testando = true
         falha = null
         escopo.launch {
-            // Sem esquema, o servidor de mídia de casa é quase sempre HTTP puro
-            // na porta 8096; já um WebDAV costuma estar atrás de HTTPS.
-            var texto = endereco.trim()
-            if (!texto.startsWith("http://", true) && !texto.startsWith("https://", true)) {
-                texto = (if (tipo == ContaDeRede.Tipo.WEBDAV) "https://" else "http://") + texto
+            // Sem esquema não dá para saber: `maujellyfin.uk` atrás do
+            // Cloudflare só fala HTTPS, e `192.168.0.10:8096` em casa só fala
+            // HTTP. Tenta HTTPS primeiro e cai para HTTP só se nem conectar —
+            // erro de senha num deles já é resposta e encerra a tentativa.
+            val texto = endereco.trim()
+            val candidatos = if (texto.startsWith("http://", true) || texto.startsWith("https://", true)) {
+                listOf(texto)
+            } else {
+                listOf("https://$texto", "http://$texto")
             }
-            var nova = (conta ?: ContaDeRede(tipo = tipo, nome = "", endereco = ""))
-                .copy(endereco = texto, usuario = usuario.trim())
-            nova = nova.copy(nome = nome.trim().ifEmpty { nova.enderecoCurto })
-
-            runCatching {
-                if (tipo == ContaDeRede.Tipo.WEBDAV) {
-                    nova = testarWebDav(nova, senha)
-                    loja.salvar(nova, senha)
-                } else {
-                    // Editar só o apelido não pede a senha de novo; trocar o
-                    // servidor ou o usuário pede, porque o token antigo não vale lá.
-                    val mesmoAcesso = conta != null && conta.endereco == nova.endereco && conta.usuario == nova.usuario
-                    if (mesmoAcesso && senha.isEmpty()) {
-                        loja.salvar(nova, null)
-                    } else {
-                        val (idUsuario, token) = ServidorDeMidia.entrar(nova, senha)
-                        nova = nova.copy(idNoServidor = idUsuario)
-                        loja.salvar(nova, token)
-                    }
+            for ((i, candidato) in candidatos.withIndex()) {
+                val resultado = runCatching { salvarEm(candidato) }
+                val erro = resultado.exceptionOrNull()
+                if (erro == null) {
+                    onSalvo()
+                    break
                 }
-            }.onSuccess { onSalvo() }
-                .onFailure { falha = it.message ?: it.javaClass.simpleName }
+                if (erro is java.io.IOException && i < candidatos.lastIndex) continue
+                falha = erro.message ?: erro.javaClass.simpleName
+                break
+            }
             testando = false
         }
     }
