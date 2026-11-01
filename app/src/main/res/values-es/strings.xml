@@ -319,4 +319,6 @@
     <string name="senha_entrar_de_novo">Contraseña (solo para volver a entrar)</string>
     <string name="conta_webdav_explica">En Nextcloud basta con la dirección del servidor: la app completa la ruta de tus archivos. La contraseña queda cifrada en el dispositivo.</string>
     <string name="conta_midia_explica">La contraseña solo sirve para entrar. La app guarda la clave de acceso que devuelve el servidor, cifrada en el dispositivo, y reproduce los archivos originales, sin conversión.</string>
+    <string name="historico">Historial</string>
+    <string name="remover_do_historico">Quitar del historial</string>
 </resources>

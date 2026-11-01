@@ -1,5 +1,12 @@
 package com.mauricio.libertyx.library
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.layout.widthIn
+import com.mauricio.libertyx.core.Historico
+import com.mauricio.libertyx.rede.AtalhoDeServidor
 import com.mauricio.libertyx.rede.EscolhaDeTipoDeServidor
 import com.mauricio.libertyx.rede.NovoServidor
 import androidx.compose.material.icons.filled.Add
@@ -146,6 +153,7 @@ import com.mauricio.libertyx.core.Pro
 fun LibraryScreen(
     onOpenServers: () -> Unit,
     onAdicionarServidor: (NovoServidor) -> Unit = {},
+    onAtalho: (AtalhoDeServidor) -> Unit = {},
     onGuia: () -> Unit = {},
 ) {
     val contexto = LocalContext.current
@@ -175,12 +183,12 @@ fun LibraryScreen(
 
     BackHandler(enabled = caminhoAberto != null && pastaUnica == null) { caminhoAberto = null }
 
-    // O que se estava vendo por último, para o fundo e para a faixa de cima.
-    val continuar = remember(grupos, volta) {
-        val loja = ResumeStore.get(contexto)
-        val porChave = grupos.flatMap { it.items }.associateBy { it.origin.resumeKey }
-        loja.recent().mapNotNull { porChave[it] }.take(12)
-    }
+    // O que se viu por último, para o fundo e para a faixa de cima — de
+    // qualquer origem, servidor incluído. Ver Historico.
+    val versaoDoHistorico = Historico.versao.intValue
+    val continuar = remember(versaoDoHistorico, volta) { Historico.get(contexto).itens.take(20) }
+    val atalhos = remember(volta) { AtalhoDeServidor.todos(contexto) }
+    val removerDoHistorico = { item: MediaItem -> Historico.get(contexto).remover(item) }
 
     Box(Modifier.fillMaxSize()) {
         FundoDeCapa(if (aberta != null) capaDa(aberta) else continuar.firstOrNull() ?: grupos.firstOrNull()?.let(::capaDa))
@@ -226,11 +234,17 @@ fun LibraryScreen(
             label = "estante e pasta",
         ) { pasta ->
             when {
-                grupos.isEmpty() && !varrendo -> Vazio(onOpenServers)
-                grupos.isEmpty() -> Box(Modifier.fillMaxSize())
+                // Sem vídeo no aparelho, mas com servidor ou histórico, a
+                // estante aparece igual: quem só assiste do Jellyfin não pode
+                // cair na tela de boas-vindas toda vez.
+                grupos.isEmpty() && continuar.isEmpty() && atalhos.isEmpty() ->
+                    if (varrendo) Box(Modifier.fillMaxSize()) else Vazio(onOpenServers)
                 pasta == null -> Estante(
                     grupos = grupos,
                     continuar = continuar,
+                    atalhos = atalhos,
+                    onAtalho = onAtalho,
+                    onRemoverDoHistorico = removerDoHistorico,
                     volta = volta,
                     onAbrir = { caminhoAberto = it.path },
                     onServidores = onOpenServers,
@@ -244,6 +258,9 @@ fun LibraryScreen(
                     volta = volta,
                     raiz = pastaUnica != null,
                     continuar = continuar,
+                    atalhos = atalhos,
+                    onAtalho = onAtalho,
+                    onRemoverDoHistorico = removerDoHistorico,
                     onVoltar = { caminhoAberto = null },
                     onServidores = onOpenServers,
                     onAdicionarServidor = onAdicionarServidor,
@@ -331,6 +348,9 @@ private fun LazyGridScope.inteiro(key: String, conteudo: @Composable () -> Unit)
 private fun Estante(
     grupos: List<VideoGroup>,
     continuar: List<MediaItem>,
+    atalhos: List<AtalhoDeServidor>,
+    onAtalho: (AtalhoDeServidor) -> Unit,
+    onRemoverDoHistorico: (MediaItem) -> Unit,
     volta: Int,
     onAbrir: (VideoGroup) -> Unit,
     onServidores: () -> Unit,
@@ -362,20 +382,11 @@ private fun Estante(
             )
         }
 
-        if (continuar.isNotEmpty()) {
-            inteiro("continuar") {
-                Column {
-                    Secao(stringResource(R.string.continuar_assistindo))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(continuar, key = { it.id }) { item ->
-                            CartaoDeContinuar(item, volta) { Playback.start(contexto, item, continuar) }
-                        }
-                    }
-                }
-            }
-        }
+        faixasDeCima(continuar, atalhos, volta, onAtalho, onRemoverDoHistorico)
 
-        inteiro("pastas") { Secao(stringResource(R.string.pastas), grupos.size.toString()) }
+        if (grupos.isNotEmpty()) {
+            inteiro("pastas") { Secao(stringResource(R.string.pastas), grupos.size.toString()) }
+        }
         items(grupos, key = { it.path }) { grupo ->
             CapaDePasta(grupo) { onAbrir(grupo) }
         }
@@ -576,15 +587,92 @@ private fun CartaoDaRede(onClick: () -> Unit) {
     }
 }
 
+/**
+ * O histórico e os servidores salvos, no alto da estante.
+ *
+ * O histórico vale para qualquer origem; segurar um cartão oferece tirá-lo
+ * dali. Os servidores entram direto no servidor — cadastrar fica no "+".
+ */
+private fun LazyGridScope.faixasDeCima(
+    continuar: List<MediaItem>,
+    atalhos: List<AtalhoDeServidor>,
+    volta: Int,
+    onAtalho: (AtalhoDeServidor) -> Unit,
+    onRemoverDoHistorico: (MediaItem) -> Unit,
+) {
+    if (continuar.isNotEmpty()) {
+        inteiro("continuar") {
+            val contexto = LocalContext.current
+            Column {
+                Secao(stringResource(R.string.historico))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(continuar, key = { it.origin.resumeKey }) { item ->
+                        CartaoDeContinuar(
+                            item, volta,
+                            onRemover = { onRemoverDoHistorico(item) },
+                        ) { Playback.start(contexto, item, continuar) }
+                    }
+                }
+            }
+        }
+    }
+    if (atalhos.isNotEmpty()) {
+        inteiro("servidores") {
+            Column {
+                Secao(stringResource(R.string.servidores), atalhos.size.toString())
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(atalhos, key = { it.chave }) { atalho ->
+                        Row(
+                            Modifier.widthIn(max = 220.dp)
+                                .tvFocus(LabTheme.radiusCard, scale = 1.03f)
+                                .clip(RoundedCornerShape(LabTheme.radiusCard)).labCard()
+                                .clickable { onAtalho(atalho) }
+                                .padding(start = 8.dp, end = 14.dp, top = 8.dp, bottom = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(
+                                Modifier.size(34.dp).clip(RoundedCornerShape(10.dp))
+                                    .background(LabTheme.accent.copy(alpha = 0.14f)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(atalho.icone, null, tint = LabTheme.accent, modifier = Modifier.size(18.dp))
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    atalho.nome, color = LabTheme.text, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(atalho.tipo, color = LabTheme.muted, fontSize = 11.sp, maxLines = 1)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 /** Continuar: a miniatura larga, a barra do quanto já foi, e quanto falta. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun CartaoDeContinuar(item: MediaItem, volta: Int, onClick: () -> Unit) {
+private fun CartaoDeContinuar(item: MediaItem, volta: Int, onRemover: () -> Unit, onClick: () -> Unit) {
     val contexto = LocalContext.current
     val loja = ResumeStore.get(contexto)
     val progresso = remember(item.id, volta) { loja.progress(item.origin.resumeKey) }
     val falta = remember(item.id, volta) { loja.remaining(item.origin.resumeKey) }
 
-    Column(Modifier.width(236.dp * Escala.fator()).tvFocus(14.dp).clickable(onClick = onClick)) {
+    var menu by remember { mutableStateOf(false) }
+    Column(
+        Modifier.width(236.dp * Escala.fator()).tvFocus(14.dp)
+            .combinedClickable(onClick = onClick, onLongClick = { menu = true }),
+    ) {
+        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, containerColor = LabTheme.surface) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.remover_do_historico)) },
+                onClick = { menu = false; onRemover() },
+            )
+        }
         Box(
             Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(14.dp))
                 .border(0.5.dp, LabTheme.glassBorder, RoundedCornerShape(14.dp)),
@@ -621,6 +709,9 @@ private fun Pasta(
     volta: Int,
     raiz: Boolean,
     continuar: List<MediaItem>,
+    atalhos: List<AtalhoDeServidor>,
+    onAtalho: (AtalhoDeServidor) -> Unit,
+    onRemoverDoHistorico: (MediaItem) -> Unit,
     onVoltar: () -> Unit,
     onServidores: () -> Unit,
     onAdicionarServidor: (NovoServidor) -> Unit,
@@ -652,17 +743,9 @@ private fun Pasta(
                 Titulo(if (raiz) stringResource(R.string.biblioteca) else grupo.name, resumoDa(grupo))
             }
         }
-        if (raiz && continuar.isNotEmpty()) {
-            inteiro("continuar") {
-                Column {
-                    Secao(stringResource(R.string.continuar_assistindo))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(continuar, key = { it.id }) { item ->
-                            CartaoDeContinuar(item, volta) { Playback.start(contexto, item, continuar) }
-                        }
-                    }
-                }
-            }
+        if (raiz) faixasDeCima(continuar, atalhos, volta, onAtalho, onRemoverDoHistorico)
+        // Com faixas em cima, os vídeos da pasta precisam de um título próprio.
+        if (raiz && (continuar.isNotEmpty() || atalhos.isNotEmpty())) {
             inteiro("secao") { Secao(grupo.name) }
         }
         if (emGrade) {

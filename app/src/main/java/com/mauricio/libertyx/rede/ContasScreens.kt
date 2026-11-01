@@ -90,6 +90,8 @@ import com.mauricio.libertyx.library.LinhaDeVideo
 import com.mauricio.libertyx.library.OpcoesDaBiblioteca
 import com.mauricio.libertyx.library.Thumbnails
 import com.mauricio.libertyx.player.Playback
+import com.mauricio.libertyx.smb.SmbServer
+import com.mauricio.libertyx.smb.SmbServerStore
 import com.mauricio.libertyx.tv.setasTrocamDeCampo
 import com.mauricio.libertyx.tv.tvFocus
 import kotlinx.coroutines.launch
@@ -105,6 +107,33 @@ val ContaDeRede.Tipo.icone: ImageVector
 
 /** Um cadastro pedido de fora da tela de servidores — o "+" da biblioteca. `null` é o SMB. */
 data class NovoServidor(val tipo: ContaDeRede.Tipo?)
+
+/** Um servidor salvo, como atalho na tela inicial. */
+sealed interface AtalhoDeServidor {
+    val chave: String
+    val nome: String
+    val tipo: String
+    val icone: ImageVector
+
+    data class Smb(val servidor: SmbServer) : AtalhoDeServidor {
+        override val chave get() = "smb:" + servidor.id
+        override val nome get() = servidor.name
+        override val tipo get() = "SMB"
+        override val icone get() = Icons.Filled.Dns
+    }
+
+    data class Conta(val conta: ContaDeRede) : AtalhoDeServidor {
+        override val chave get() = "conta:" + conta.id
+        override val nome get() = conta.nome
+        override val tipo get() = conta.tipo.nome
+        override val icone get() = conta.tipo.icone
+    }
+
+    companion object {
+        fun todos(context: android.content.Context): List<AtalhoDeServidor> =
+            SmbServerStore.get(context).servers.map(::Smb) + ContasDeRede.get(context).contas.map(::Conta)
+    }
+}
 
 /**
  * Qual servidor cadastrar. `null` é o SMB, que tem formulário próprio.

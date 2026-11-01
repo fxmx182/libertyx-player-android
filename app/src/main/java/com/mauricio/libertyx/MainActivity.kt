@@ -41,6 +41,7 @@ import com.mauricio.libertyx.core.LabTheme
 import com.mauricio.libertyx.core.LibertyXTheme
 import com.mauricio.libertyx.library.LibraryScreen
 import com.mauricio.libertyx.tv.TvHomeScreen
+import com.mauricio.libertyx.rede.AtalhoDeServidor
 import com.mauricio.libertyx.rede.ContaDeRede
 import com.mauricio.libertyx.rede.ContaScreen
 import com.mauricio.libertyx.rede.NovoServidor
@@ -60,8 +61,9 @@ private sealed interface Screen {
     data object Library : Screen
     /** [cadastro]: o "+" da biblioteca pediu para já abrir o formulário. */
     data class Servers(val cadastro: NovoServidor? = null) : Screen
-    data class Browser(val server: SmbServer) : Screen
-    data class Conta(val conta: ContaDeRede) : Screen
+    /** [daBiblioteca]: aberto pelo atalho da tela inicial, e voltar leva para lá. */
+    data class Browser(val server: SmbServer, val daBiblioteca: Boolean = false) : Screen
+    data class Conta(val conta: ContaDeRede, val daBiblioteca: Boolean = false) : Screen
 }
 
 class MainActivity : ComponentActivity() {
@@ -118,6 +120,14 @@ private fun App() {
             else LibraryScreen(
                 onOpenServers = { abrirRede(null) },
                 onAdicionarServidor = { abrirRede(it) },
+                onAtalho = { atalho ->
+                    if (ProActivity.exigir(contexto, Pro.Recurso.REDE)) {
+                        tela = when (atalho) {
+                            is AtalhoDeServidor.Smb -> Screen.Browser(atalho.servidor, daBiblioteca = true)
+                            is AtalhoDeServidor.Conta -> Screen.Conta(atalho.conta, daBiblioteca = true)
+                        }
+                    }
+                },
                 onGuia = { mostrandoGuia = true },
             )
         }
@@ -129,11 +139,11 @@ private fun App() {
         )
         is Screen.Conta -> ContaScreen(
             conta = atual.conta,
-            onBack = { tela = Screen.Servers() },
+            onBack = { tela = if (atual.daBiblioteca) Screen.Library else Screen.Servers() },
         )
         is Screen.Browser -> SmbBrowserScreen(
             server = atual.server,
-            onBack = { tela = Screen.Servers() },
+            onBack = { tela = if (atual.daBiblioteca) Screen.Library else Screen.Servers() },
         )
     }
 }

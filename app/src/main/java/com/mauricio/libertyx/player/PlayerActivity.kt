@@ -40,6 +40,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import com.mauricio.libertyx.R
+import com.mauricio.libertyx.core.Historico
 import com.mauricio.libertyx.core.MediaItem
 import com.mauricio.libertyx.core.MediaOrigin
 import com.mauricio.libertyx.core.Pro
@@ -508,6 +509,7 @@ class PlayerActivity : Activity() {
         ui.tvTitle.text = alvo.title
         didPresentError = false
         lastSavedPosition = 0.0
+        Historico.get(this).registrar(alvo)
 
         engine.load(alvo).onFailure {
             presentError(it.message ?: getString(R.string.erro_abrir_curto))

@@ -320,4 +320,6 @@
     <string name="senha_entrar_de_novo">Password (only to sign in again)</string>
     <string name="conta_webdav_explica">For Nextcloud the server address is enough: the app fills in the path to your files. The password is kept encrypted on the device.</string>
     <string name="conta_midia_explica">The password is only used to sign in. The app keeps the access key the server returns, encrypted on the device, and plays the original files, without conversion.</string>
+    <string name="historico">History</string>
+    <string name="remover_do_historico">Remove from history</string>
 </resources>
