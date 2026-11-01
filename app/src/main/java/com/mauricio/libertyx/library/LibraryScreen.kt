@@ -1,5 +1,8 @@
 package com.mauricio.libertyx.library
 
+import com.mauricio.libertyx.rede.EscolhaDeTipoDeServidor
+import com.mauricio.libertyx.rede.NovoServidor
+import androidx.compose.material.icons.filled.Add
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -140,7 +143,11 @@ import com.mauricio.libertyx.core.Pro
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(onOpenServers: () -> Unit, onGuia: () -> Unit = {}) {
+fun LibraryScreen(
+    onOpenServers: () -> Unit,
+    onAdicionarServidor: (NovoServidor) -> Unit = {},
+    onGuia: () -> Unit = {},
+) {
     val contexto = LocalContext.current
     val escopo = rememberCoroutineScope()
     val opcoes = remember { LibraryOptions(contexto) }
@@ -227,6 +234,7 @@ fun LibraryScreen(onOpenServers: () -> Unit, onGuia: () -> Unit = {}) {
                     volta = volta,
                     onAbrir = { caminhoAberto = it.path },
                     onServidores = onOpenServers,
+                    onAdicionarServidor = onAdicionarServidor,
                     onOpcoes = { mostrandoOpcoes = true },
                     onVarrer = { escopo.launch { varrer() } },
                 )
@@ -238,6 +246,7 @@ fun LibraryScreen(onOpenServers: () -> Unit, onGuia: () -> Unit = {}) {
                     continuar = continuar,
                     onVoltar = { caminhoAberto = null },
                     onServidores = onOpenServers,
+                    onAdicionarServidor = onAdicionarServidor,
                     onOpcoes = { mostrandoOpcoes = true },
                     onVarrer = { escopo.launch { varrer() } },
                 )
@@ -325,6 +334,7 @@ private fun Estante(
     volta: Int,
     onAbrir: (VideoGroup) -> Unit,
     onServidores: () -> Unit,
+    onAdicionarServidor: (NovoServidor) -> Unit,
     onOpcoes: () -> Unit,
     onVarrer: () -> Unit,
 ) {
@@ -339,7 +349,10 @@ private fun Estante(
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         inteiro("barra") {
-            BarraDoTopo(onVoltar = null, onServidores = onServidores, onOpcoes = onOpcoes, onVarrer = onVarrer)
+            BarraDoTopo(
+                onVoltar = null, onServidores = onServidores, onAdicionarServidor = onAdicionarServidor,
+                onOpcoes = onOpcoes, onVarrer = onVarrer,
+            )
         }
         inteiro("titulo") {
             Titulo(
@@ -374,9 +387,20 @@ private fun Estante(
 private fun BarraDoTopo(
     onVoltar: (() -> Unit)?,
     onServidores: () -> Unit,
+    onAdicionarServidor: (NovoServidor) -> Unit,
     onOpcoes: () -> Unit,
     onVarrer: () -> Unit,
 ) {
+    var escolhendoTipo by remember { mutableStateOf(false) }
+    if (escolhendoTipo) {
+        EscolhaDeTipoDeServidor(
+            onEscolher = { tipo ->
+                escolhendoTipo = false
+                onAdicionarServidor(NovoServidor(tipo))
+            },
+            onCancel = { escolhendoTipo = false },
+        )
+    }
     Row(
         Modifier.fillMaxWidth().height(52.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -397,6 +421,10 @@ private fun BarraDoTopo(
         if (onVoltar == null) {
             Spacer(Modifier.width(10.dp))
             BotaoRedondo(Icons.Filled.Refresh, stringResource(R.string.procurar_de_novo), onVarrer)
+            // O lugar onde se procura "adicionar" é o "+": o ícone de
+            // servidores passava despercebido.
+            Spacer(Modifier.width(10.dp))
+            BotaoRedondo(Icons.Filled.Add, stringResource(R.string.adicionar_servidor)) { escolhendoTipo = true }
         }
     }
 }
@@ -595,6 +623,7 @@ private fun Pasta(
     continuar: List<MediaItem>,
     onVoltar: () -> Unit,
     onServidores: () -> Unit,
+    onAdicionarServidor: (NovoServidor) -> Unit,
     onOpcoes: () -> Unit,
     onVarrer: () -> Unit,
 ) {
@@ -614,7 +643,8 @@ private fun Pasta(
         inteiro("barra") {
             BarraDoTopo(
                 onVoltar = if (raiz) null else onVoltar,
-                onServidores = onServidores, onOpcoes = onOpcoes, onVarrer = onVarrer,
+                onServidores = onServidores, onAdicionarServidor = onAdicionarServidor,
+                onOpcoes = onOpcoes, onVarrer = onVarrer,
             )
         }
         inteiro("titulo") {

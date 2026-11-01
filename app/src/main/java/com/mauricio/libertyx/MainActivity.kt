@@ -43,6 +43,7 @@ import com.mauricio.libertyx.library.LibraryScreen
 import com.mauricio.libertyx.tv.TvHomeScreen
 import com.mauricio.libertyx.rede.ContaDeRede
 import com.mauricio.libertyx.rede.ContaScreen
+import com.mauricio.libertyx.rede.NovoServidor
 import com.mauricio.libertyx.smb.SmbBrowserScreen
 import com.mauricio.libertyx.smb.SmbServer
 import com.mauricio.libertyx.smb.SmbServersScreen
@@ -57,7 +58,8 @@ import androidx.compose.ui.res.stringResource
  */
 private sealed interface Screen {
     data object Library : Screen
-    data object Servers : Screen
+    /** [cadastro]: o "+" da biblioteca pediu para já abrir o formulário. */
+    data class Servers(val cadastro: NovoServidor? = null) : Screen
     data class Browser(val server: SmbServer) : Screen
     data class Conta(val conta: ContaDeRede) : Screen
 }
@@ -109,24 +111,29 @@ private fun App() {
         // para o dedo, faixas para o controle remoto.
         is Screen.Library -> ComPermissao(bloqueia = !naTv) {
             // A rede é Pro: depois do teste, a porta leva à tela de compra.
-            val abrirRede = {
-                if (ProActivity.exigir(contexto, Pro.Recurso.REDE)) tela = Screen.Servers
+            val abrirRede = { cadastro: NovoServidor? ->
+                if (ProActivity.exigir(contexto, Pro.Recurso.REDE)) tela = Screen.Servers(cadastro)
             }
-            if (naTv) TvHomeScreen(onOpenServers = abrirRede)
-            else LibraryScreen(onOpenServers = abrirRede, onGuia = { mostrandoGuia = true })
+            if (naTv) TvHomeScreen(onOpenServers = { abrirRede(null) })
+            else LibraryScreen(
+                onOpenServers = { abrirRede(null) },
+                onAdicionarServidor = { abrirRede(it) },
+                onGuia = { mostrandoGuia = true },
+            )
         }
         is Screen.Servers -> SmbServersScreen(
             onBack = { tela = Screen.Library },
             onOpen = { servidor -> tela = Screen.Browser(servidor) },
             onOpenConta = { conta -> tela = Screen.Conta(conta) },
+            cadastroInicial = atual.cadastro,
         )
         is Screen.Conta -> ContaScreen(
             conta = atual.conta,
-            onBack = { tela = Screen.Servers },
+            onBack = { tela = Screen.Servers() },
         )
         is Screen.Browser -> SmbBrowserScreen(
             server = atual.server,
-            onBack = { tela = Screen.Servers },
+            onBack = { tela = Screen.Servers() },
         )
     }
 }

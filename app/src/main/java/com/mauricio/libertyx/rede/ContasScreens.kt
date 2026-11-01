@@ -103,6 +103,9 @@ val ContaDeRede.Tipo.icone: ImageVector
 
 // MARK: Escolha do tipo
 
+/** Um cadastro pedido de fora da tela de servidores — o "+" da biblioteca. `null` é o SMB. */
+data class NovoServidor(val tipo: ContaDeRede.Tipo?)
+
 /**
  * Qual servidor cadastrar. `null` é o SMB, que tem formulário próprio.
  */

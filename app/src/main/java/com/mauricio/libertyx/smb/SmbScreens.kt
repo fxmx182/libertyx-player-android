@@ -91,6 +91,7 @@ import com.mauricio.libertyx.rede.ContaDeRede
 import com.mauricio.libertyx.rede.ContasDeRede
 import com.mauricio.libertyx.rede.EditorDeConta
 import com.mauricio.libertyx.rede.EscolhaDeTipoDeServidor
+import com.mauricio.libertyx.rede.NovoServidor
 import com.mauricio.libertyx.rede.icone
 import com.mauricio.libertyx.core.LabTheme
 import com.mauricio.libertyx.core.Escala
@@ -110,6 +111,8 @@ fun SmbServersScreen(
     onBack: () -> Unit,
     onOpen: (SmbServer) -> Unit,
     onOpenConta: (ContaDeRede) -> Unit,
+    /** Abre o formulário deste tipo assim que a tela aparece. */
+    cadastroInicial: NovoServidor? = null,
 ) {
     val contexto = LocalContext.current
     val store = remember { SmbServerStore.get(contexto) }
@@ -150,6 +153,11 @@ fun SmbServersScreen(
             }
         }
         procurando = false
+    }
+    LaunchedEffect(cadastroInicial) {
+        val pedido = cadastroInicial ?: return@LaunchedEffect
+        if (pedido.tipo == null) criando = SmbServer(name = "", host = "")
+        else editandoConta = pedido.tipo to null
     }
     val primeiroFoco = remember { FocusRequester() }
 
