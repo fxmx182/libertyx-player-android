@@ -156,6 +156,25 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
     }
 
     /**
+     * O episódio que vem depois deste, pelo "A seguir" do servidor — que sabe
+     * das outras temporadas e do que já foi visto em outro aparelho. `null`
+     * para filme ou quando a série acabou.
+     */
+    suspend fun proximoEpisodio(itemId: String): Item? {
+        val atual = lista(JSONArray().put(pedir("/Users/$usuarioId/Items/$itemId"))).firstOrNull() ?: return null
+        val serie = atual.serieId ?: return null
+        return lista(
+            pedir(
+                "/Shows/NextUp",
+                listOf(
+                    "UserId" to usuarioId, "SeriesId" to serie, "Limit" to "1",
+                    "Fields" to "DateCreated", "EnableUserData" to "true",
+                ),
+            )
+        ).firstOrNull { it.ehVideo && it.id != itemId }
+    }
+
+    /**
      * Conta ao servidor o que está tocando, para o "Continuar assistindo" e o
      * "visto" valerem também no app dele, na TV e no navegador.
      *

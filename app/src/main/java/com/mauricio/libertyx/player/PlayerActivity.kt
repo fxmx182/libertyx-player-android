@@ -68,6 +68,9 @@ import kotlin.random.Random
  * motor mudar. É a mesma separação do `PlayerViewController` do iOS, e ela já
  * se pagou lá — trocar de motor custou uma linha.
  */
+/** Nome de episódio: "S01E02", "s1 e2" ou "1x02". */
+private val EPISODIO = Regex("""(?i)(\bS\d{1,2}\s?E\d{1,3}\b|\b\d{1,2}x\d{2,3}\b)""")
+
 class PlayerActivity : Activity() {
 
     /** Ajustes de sensibilidade. */
@@ -229,6 +232,9 @@ class PlayerActivity : Activity() {
 
     override fun onPause() {
         super.onPause()
+        // Ao fechar, o aviso ao servidor sai aqui, e não no onDestroy: esse
+        // vem depois de a tela de trás já ter pedido o "Continuar" de novo.
+        if (isFinishing && ::engine.isInitialized) encerrar(engine.currentTime)
         passarParaSegundoPlano()
     }
 
@@ -312,8 +318,7 @@ class PlayerActivity : Activity() {
         com.mauricio.libertyx.library.Thumbnails.pausar(false)
         main.removeCallbacksAndMessages(null)
         if (::engine.isInitialized) {
-            saveResumeNow()
-            aviso.parou(engine.currentTime)
+            encerrar(engine.currentTime)
             engine.detach()
             engine.teardown()
         }
@@ -515,6 +520,7 @@ class PlayerActivity : Activity() {
         ui.tvTitle.text = alvo.title
         didPresentError = false
         lastSavedPosition = 0.0
+        encerrado = false
         Historico.get(this).registrar(alvo)
 
         engine.load(alvo).onFailure {
@@ -569,6 +575,46 @@ class PlayerActivity : Activity() {
     }
 
     /** Ao sair, sem o intervalo: é justamente quando a posição precisa estar certa. */
+    /** Se o vídeo atual já passou por [encerrar]; volta a `false` a cada vídeo. */
+    private var encerrado = false
+
+    /**
+     * O vídeo atual sai de cena: acabou, foi trocado ou o player fechou.
+     *
+     * Visto até o fim — pela regra do Jellyfin, ver [ResumeStore.terminou] —,
+     * ele sai do histórico e o próximo episódio entra no lugar; senão, fica a
+     * marca para retomar. [acabou]: o vídeo chegou ao fim sozinho, e então
+     * conta como visto mesmo sem saber a duração.
+     */
+    private fun encerrar(posicao: Double, acabou: Boolean = false) {
+        val alvo = item ?: return
+        if (encerrado) return
+        encerrado = true
+        val visto = acabou || ResumeStore.terminou(posicao, engine.duration)
+        if (visto) {
+            resume.clear(alvo.origin.resumeKey)
+            // O do servidor vem do "A seguir" dele (ver AvisoAoServidor), que
+            // sabe da temporada seguinte; a fila só tem esta.
+            val proximo = if (alvo.origin is MediaOrigin.Midia) null else proximoEpisodioDaFila()
+            Historico.get(this).terminou(alvo.origin.resumeKey, proximo)
+        } else {
+            saveResumeNow()
+        }
+        aviso.parou(posicao, visto)
+    }
+
+    /**
+     * O vídeo seguinte da fila, quando os dois têm nome de episódio (S01E02,
+     * 1x02). Numa pasta de filmes, o seguinte é outro filme — e um filme que
+     * ninguém começou não tem por que aparecer no histórico.
+     */
+    private fun proximoEpisodioDaFila(): MediaItem? {
+        val atual = item ?: return null
+        if (isShuffling) return null
+        val seguinte = Playback.queue.getOrNull(Playback.index + 1) ?: return null
+        return seguinte.takeIf { EPISODIO.containsMatchIn(atual.title) && EPISODIO.containsMatchIn(it.title) }
+    }
+
     private fun saveResumeNow() {
         val alvo = item ?: return
         if (engine.duration > 0 && engine.currentTime > 30) {
@@ -623,10 +669,7 @@ class PlayerActivity : Activity() {
             engine.play()
             return
         }
-        // Quem assistiu até o fim não quer voltar para os créditos na próxima.
-        item?.let { resume.clear(it.origin.resumeKey) }
-        // No fim, e não onde o tempo parou de contar: é o que marca como visto.
-        aviso.parou(engine.duration)
+        encerrar(engine.duration, acabou = true)
 
         if (isShuffling && Playback.queue.size > 1) goToNext()
         else if (Playback.index + 1 < Playback.queue.size) goToNext()
@@ -635,8 +678,7 @@ class PlayerActivity : Activity() {
 
     private fun switchTo(indice: Int) {
         if (indice !in Playback.queue.indices) return
-        saveResumeNow()
-        aviso.parou(engine.currentTime)
+        encerrar(engine.currentTime)
 
         Playback.index = indice
         item = Playback.queue[indice]

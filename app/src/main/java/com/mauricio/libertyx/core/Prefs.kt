@@ -127,6 +127,7 @@ class ResumeStore private constructor(context: Context) {
         val marca = marcas[key] ?: return null
         if (marca.position <= 30) return null
         if (marca.duration > 0 && marca.position > marca.duration - 30) return null
+        if (terminou(marca.position, marca.duration)) return null
         return marca.position
     }
 
@@ -154,6 +155,11 @@ class ResumeStore private constructor(context: Context) {
     @Synchronized
     fun save(position: Double, duration: Double, key: String) {
         if (!position.isFinite() || position <= 0) return
+        // Nos créditos já conta como visto: a marca sai, em vez de mudar.
+        if (terminou(position, duration)) {
+            if (marcas.remove(key) != null) persist()
+            return
+        }
         marcas[key] = Marca(position, duration, System.currentTimeMillis())
         persist()
     }
@@ -210,6 +216,17 @@ class ResumeStore private constructor(context: Context) {
     companion object {
         private const val KEY = "libertyx.resume"
         private const val LIMITE = 300
+
+        /**
+         * Se quem parou aqui já viu o vídeo — a mesma regra do Jellyfin.
+         *
+         * Lá, passar de 90% da duração (o `MaxResumePct` do servidor) ou
+         * chegar a um segundo do fim marca como visto e zera a posição: os
+         * créditos não contam. Usar a mesma conta aqui faz o app e o servidor
+         * concordarem sobre o que sai do "Continuar".
+         */
+        fun terminou(posicao: Double, duracao: Double): Boolean =
+            duracao > 0 && (posicao >= duracao * 0.9 || posicao >= duracao - 1)
 
         @Volatile private var instance: ResumeStore? = null
 

@@ -180,6 +180,9 @@ private class Inicio(
  * falha sozinha só não aparece.
  */
 private suspend fun carregar(servidor: ServidorDeMidia): Inicio = coroutineScope {
+    // Quem acabou de fechar o player chega aqui antes de o "parou" chegar ao
+    // servidor; sem esperar, o filme que terminou voltaria ao "Continuar".
+    AvisoAoServidor.emDia()
     val continuar = async { runCatching { servidor.continuar() }.getOrDefault(emptyList()) }
     val aSeguir = async { runCatching { servidor.aSeguir() }.getOrDefault(emptyList()) }
     val bibliotecas = servidor.bibliotecas()
@@ -198,7 +201,7 @@ private suspend fun carregar(servidor: ServidorDeMidia): Inicio = coroutineScope
 }
 
 /** O mesmo título das pastas do servidor, para a retomada e o histórico baterem. */
-private fun paraTocar(conta: ContaDeRede, item: Item): MediaItem {
+internal fun paraTocar(conta: ContaDeRede, item: Item): MediaItem {
     val origem = MediaOrigin.Midia(conta.id, item.id)
     return MediaItem(
         id = origem.resumeKey, title = item.titulo, origin = origem,

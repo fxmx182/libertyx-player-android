@@ -37,6 +37,20 @@ class Historico private constructor(context: Context) {
         persistir()
     }
 
+    /**
+     * Visto até o fim: sai da lista, e o próximo episódio, se houver, entra
+     * no lugar dele — como o "Continuar" e o "A seguir" do Jellyfin.
+     */
+    fun terminou(chave: String, proximo: MediaItem?) {
+        val lugar = _itens.indexOfFirst { it.origin.resumeKey == chave }
+        _itens.removeAll { it.origin.resumeKey == chave }
+        if (proximo != null) {
+            _itens.removeAll { it.origin.resumeKey == proximo.origin.resumeKey }
+            _itens.add(lugar.coerceIn(0, _itens.size), proximo)
+        }
+        persistir()
+    }
+
     fun remover(item: MediaItem) {
         val chave = item.origin.resumeKey
         _itens.removeAll { it.origin.resumeKey == chave }
