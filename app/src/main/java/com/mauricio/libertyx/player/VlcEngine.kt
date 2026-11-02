@@ -22,6 +22,9 @@ import kotlin.math.abs
 import com.mauricio.libertyx.core.Textos
 import com.mauricio.libertyx.R
 
+/** "Forced", "Forçada(s)", "Forzado(s)", "Forcé(e)(s)" — palavra inteira, em qualquer caixa. */
+private val FORCADA = Regex("""(?i)(^|[^\p{L}])(forced|for[çcz]ad[oa]s?|forcée?s?)([^\p{L}]|$)""")
+
 sealed interface PlaybackState {
     data object Idle : PlaybackState
     data object Loading : PlaybackState
@@ -255,6 +258,9 @@ class VlcEngine(private val context: Context) {
                     ?: error(Textos.get(R.string.erro_servidor_sumiu)))
         }
 
+        // Outro vídeo: a escolha de legenda do anterior não vale para ele. O
+        // mesmo vídeo reaberto (volta do segundo plano) mantém a escolha.
+        if (item.origin != origemAtual) legendaDoUsuario = false
         origemAtual = item.origin
         media.setHWDecoderEnabled(true, false)
         if (audioOnly) media.addOption(":no-video")
@@ -465,6 +471,7 @@ class VlcEngine(private val context: Context) {
 
     /** `null` desliga a legenda. */
     fun selectSubtitleTrack(id: Int?) {
+        legendaDoUsuario = true
         val alvo = id ?: -1
         if (alvo == player.spuTrack) return
         player.setSpuTrack(alvo)
@@ -483,8 +490,33 @@ class VlcEngine(private val context: Context) {
     }
 
     /** Legenda de um arquivo ao lado, escolhido pelo usuário. */
-    fun addSubtitle(uri: Uri, selecionar: Boolean = true): Boolean =
-        player.addSlave(IMedia.Slave.Type.Subtitle, uri, selecionar)
+    fun addSubtitle(uri: Uri, selecionar: Boolean = true): Boolean {
+        if (selecionar) legendaDoUsuario = true
+        return player.addSlave(IMedia.Slave.Type.Subtitle, uri, selecionar)
+    }
+
+    /** Quem escolheu a legenda no menu manda nela até o vídeo trocar. */
+    private var legendaDoUsuario = false
+
+    /**
+     * Ao abrir, só a legenda **forçada** fica ligada — a que traduz a placa, a
+     * carta ou o idioma estrangeiro no meio do filme. A completa vem desligada:
+     * o VLC liga a que o arquivo marca como padrão, e quase sempre ela está no
+     * mesmo idioma do áudio, repetindo o que já se ouve.
+     *
+     * O libVLC 3 não diz se a faixa é forçada; o nome diz — é como os arquivos
+     * a marcam ("Forced", "Forçada", "Forzados"), e é o que aparece no menu.
+     * Chamada a cada faixa que surge, porque a legenda ao lado do arquivo chega
+     * depois das de dentro dele.
+     */
+    private fun aplicarRegraDaLegenda() {
+        if (legendaDoUsuario) return
+        val faixas = player.spuTracks.orEmpty().filter { it.id >= 0 }
+        val alvo = faixas.firstOrNull { ehForcada(it.name) }?.id ?: -1
+        if (player.spuTrack != alvo) player.setSpuTrack(alvo)
+    }
+
+    private fun ehForcada(nome: String?): Boolean = nome != null && FORCADA.containsMatchIn(nome)
 
     private fun tracks(descricoes: Array<MediaPlayer.TrackDescription>?): List<MediaTrack> =
         descricoes.orEmpty()
@@ -554,6 +586,7 @@ class VlcEngine(private val context: Context) {
             MediaPlayer.Event.Playing -> {
                 buffering = false
                 state = PlaybackState.Playing
+                aplicarRegraDaLegenda()
             }
             MediaPlayer.Event.Paused -> state = PlaybackState.Paused
             MediaPlayer.Event.Stopped -> state = PlaybackState.Idle
@@ -596,7 +629,13 @@ class VlcEngine(private val context: Context) {
                 if (emRolagem) return
                 onTimeUpdate?.invoke(doVlc)
             }
-            MediaPlayer.Event.ESAdded, MediaPlayer.Event.ESDeleted -> onTracksChange?.invoke()
+            MediaPlayer.Event.ESAdded, MediaPlayer.Event.ESDeleted -> {
+                aplicarRegraDaLegenda()
+                onTracksChange?.invoke()
+            }
+            // O VLC liga a legenda padrão do arquivo por conta própria, às
+            // vezes depois de anunciar as faixas: a regra vale de novo.
+            MediaPlayer.Event.ESSelected -> aplicarRegraDaLegenda()
         }
     }
 }
