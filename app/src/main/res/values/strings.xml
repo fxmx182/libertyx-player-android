@@ -354,4 +354,8 @@
         <item quantity="other">%1$d servers</item>
     </plurals>
     <string name="preferencias">Preferences</string>
+    <string name="a_seguir">Next up</string>
+    <string name="bibliotecas">Libraries</string>
+    <string name="recentes_em">Latest in %1$s</string>
+    <string name="episodio_curto">S%1$d:E%2$d</string>
 </resources>

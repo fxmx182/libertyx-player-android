@@ -1,0 +1,367 @@
+package com.mauricio.libertyx.rede
+
+import android.graphics.Bitmap
+import android.util.LruCache
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.mauricio.libertyx.R
+import com.mauricio.libertyx.core.Escala
+import com.mauricio.libertyx.core.LabTheme
+import com.mauricio.libertyx.core.MediaItem
+import com.mauricio.libertyx.core.MediaOrigin
+import com.mauricio.libertyx.core.TimeFormat
+import com.mauricio.libertyx.core.resumeKey
+import com.mauricio.libertyx.library.Secao
+import com.mauricio.libertyx.library.rememberVoltaAoApp
+import com.mauricio.libertyx.player.Playback
+import com.mauricio.libertyx.tv.tvFocus
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import java.util.concurrent.ConcurrentHashMap
+import com.mauricio.libertyx.rede.ServidorDeMidia.Item
+
+/**
+ * A primeira tela de um Jellyfin ou Emby, como no app do próprio servidor: o
+ * que ficou pela metade, o próximo episódio de cada série e o que chegou por
+ * último em cada biblioteca.
+ *
+ * As pastas continuam a um toque — nas bibliotecas e no "›" de cada faixa —
+ * para quem prefere procurar pelo catálogo inteiro.
+ */
+@Composable
+fun InicioDoServidor(conta: ContaDeRede, onAbrir: (Item) -> Unit) {
+    val contexto = LocalContext.current
+    val servidor = remember(conta.id) {
+        val loja = ContasDeRede.get(contexto)
+        ServidorDeMidia(conta, loja.segredo(conta))
+    }
+    val volta = rememberVoltaAoApp()
+    var inicio by remember(conta.id) { mutableStateOf<Inicio?>(null) }
+    var erro by remember(conta.id) { mutableStateOf<String?>(null) }
+
+    // De novo a cada volta do player: o filme que acabou de ser visto sai do
+    // "Continuar", e o episódio seguinte entra no "A seguir". A tela antiga
+    // fica enquanto a nova carrega, sem piscar.
+    LaunchedEffect(conta.id, volta) {
+        runCatching { carregar(servidor) }
+            .onSuccess { inicio = it; erro = null }
+            .onFailure { if (inicio == null) erro = it.message ?: it.javaClass.simpleName }
+    }
+
+    val escopo = rememberCoroutineScope()
+    var abrindo by remember { mutableStateOf(false) }
+    val abrir: (Item) -> Unit = abrir@{ item ->
+        if (!item.ehVideo) {
+            onAbrir(item)
+            return@abrir
+        }
+        if (abrindo) return@abrir
+        abrindo = true
+        escopo.launch {
+            // Episódio toca com a temporada em volta, para o "próximo" do
+            // player ir ao episódio seguinte, e não ao vizinho da faixa.
+            val fila = if (item.tipo == "Episode") {
+                runCatching { servidor.temporada(item) }.getOrNull()
+                    ?.takeIf { lista -> lista.any { it.id == item.id } } ?: listOf(item)
+            } else listOf(item)
+            abrindo = false
+            Playback.start(contexto, paraTocar(conta, item), fila.map { paraTocar(conta, it) })
+        }
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        val pronto = inicio
+        when {
+            pronto == null && erro != null -> Text(
+                erro!!,
+                color = LabTheme.muted, textAlign = TextAlign.Center, fontSize = 13.sp,
+                modifier = Modifier.align(Alignment.Center).padding(32.dp),
+            )
+            pronto == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+            pronto.bibliotecas.isEmpty() -> Text(
+                stringResource(R.string.pasta_vazia), color = LabTheme.muted,
+                modifier = Modifier.align(Alignment.Center),
+            )
+            else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 4.dp, bottom = 28.dp)) {
+                if (pronto.continuar.isNotEmpty()) item(key = "continuar") {
+                    Faixa(stringResource(R.string.continuar_assistindo)) {
+                        items(pronto.continuar, key = { it.id }) { CartaoDeitado(servidor, it, abrir) }
+                    }
+                }
+                if (pronto.aSeguir.isNotEmpty()) item(key = "aSeguir") {
+                    Faixa(stringResource(R.string.a_seguir)) {
+                        items(pronto.aSeguir, key = { it.id }) { CartaoDeitado(servidor, it, abrir) }
+                    }
+                }
+                item(key = "bibliotecas") {
+                    Faixa(stringResource(R.string.bibliotecas)) {
+                        items(pronto.bibliotecas, key = { it.id }) { CartaoDeBiblioteca(servidor, it, onAbrir) }
+                    }
+                }
+                pronto.recentes.forEach { (biblioteca, itens) ->
+                    item(key = "r" + biblioteca.id) {
+                        Faixa(stringResource(R.string.recentes_em, biblioteca.nome), onTitulo = { onAbrir(biblioteca) }) {
+                            items(itens, key = { it.id }) { Cartaz(servidor, it, abrir) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private class Inicio(
+    val continuar: List<Item>,
+    val aSeguir: List<Item>,
+    val bibliotecas: List<Item>,
+    val recentes: List<Pair<Item, List<Item>>>,
+)
+
+/**
+ * Tudo junto, em paralelo. Só as bibliotecas derrubam a tela quando falham —
+ * é o pedido que diz se o servidor está lá e aceitou a conta. Uma faixa que
+ * falha sozinha só não aparece.
+ */
+private suspend fun carregar(servidor: ServidorDeMidia): Inicio = coroutineScope {
+    val continuar = async { runCatching { servidor.continuar() }.getOrDefault(emptyList()) }
+    val aSeguir = async { runCatching { servidor.aSeguir() }.getOrDefault(emptyList()) }
+    val bibliotecas = servidor.bibliotecas()
+    val recentes = bibliotecas
+        // Coleções só repetem filmes que já aparecem na biblioteca deles.
+        .filter { it.tipoDeColecao != "boxsets" }
+        .map { b -> async { b to runCatching { servidor.recentes(b) }.getOrDefault(emptyList()) } }
+    val comecados = continuar.await().map { it.id }.toSet()
+    Inicio(
+        continuar = continuar.await(),
+        // O servidor põe no "A seguir" o episódio que já está no "Continuar".
+        aSeguir = aSeguir.await().filter { it.id !in comecados },
+        bibliotecas = bibliotecas,
+        recentes = recentes.awaitAll().filter { it.second.isNotEmpty() },
+    )
+}
+
+/** O mesmo título das pastas do servidor, para a retomada e o histórico baterem. */
+private fun paraTocar(conta: ContaDeRede, item: Item): MediaItem {
+    val origem = MediaOrigin.Midia(conta.id, item.id)
+    return MediaItem(
+        id = origem.resumeKey, title = item.titulo, origin = origem,
+        modifiedAt = item.criado, duration = item.duracao,
+    )
+}
+
+/** Um título e, abaixo, a fila de capas que rola de lado. */
+@Composable
+private fun Faixa(titulo: String, onTitulo: (() -> Unit)? = null, conteudo: LazyListScope.() -> Unit) {
+    Column(Modifier.padding(top = 14.dp)) {
+        val cabecalho = Modifier.padding(horizontal = 16.dp)
+        Row(
+            if (onTitulo == null) cabecalho
+            else cabecalho.tvFocus(8.dp, scale = 1.02f).clip(RoundedCornerShape(8.dp)).clickable(onClick = onTitulo),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Secao(titulo)
+            if (onTitulo != null) {
+                // O mesmo recuo de baixo da seção, para a seta ficar na altura do texto.
+                Icon(
+                    Icons.Filled.ChevronRight, null, tint = LabTheme.muted,
+                    modifier = Modifier.padding(start = 2.dp, bottom = 8.dp).size(18.dp),
+                )
+            }
+        }
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            content = conteudo,
+        )
+    }
+}
+
+/** "Continuar" e "A seguir": a cena deitada, com o quanto falta. */
+@Composable
+private fun CartaoDeitado(servidor: ServidorDeMidia, item: Item, onClick: (Item) -> Unit) {
+    val forma = RoundedCornerShape(12.dp)
+    Column(Modifier.width(236.dp * Escala.fator()).tvFocus(12.dp).clickable { onClick(item) }) {
+        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(forma).border(0.5.dp, LabTheme.glassBorder, forma)) {
+            // O "Primary" do episódio já é uma cena; o do filme é o cartaz em pé.
+            val tipos = if (item.tipo == "Episode") listOf("Primary", "Thumb") else listOf("Thumb", "Backdrop", "Primary")
+            ImagemDoServidor(servidor, item.id, tipos, 480, Modifier.fillMaxSize())
+            Progresso(item.progresso)
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            item.serie ?: item.nome, color = LabTheme.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+            maxLines = 1, overflow = TextOverflow.Ellipsis,
+        )
+        val detalhe = when {
+            item.tipo == "Episode" -> listOfNotNull(numeroDoEpisodio(item), item.nome).joinToString(" · ")
+            item.posicao != null && item.duracao != null && item.duracao > item.posicao ->
+                stringResource(R.string.faltam, TimeFormat.spoken(item.duracao - item.posicao))
+            else -> item.ano?.toString().orEmpty()
+        }
+        Text(detalhe, color = LabTheme.muted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun numeroDoEpisodio(item: Item): String? {
+    val temporada = item.temporada ?: return null
+    val numero = item.numero ?: return null
+    return stringResource(R.string.episodio_curto, temporada, numero)
+}
+
+/** "Recentes": o cartaz em pé, com os episódios por ver ou a marca de visto. */
+@Composable
+private fun Cartaz(servidor: ServidorDeMidia, item: Item, onClick: (Item) -> Unit) {
+    val forma = RoundedCornerShape(10.dp)
+    Column(Modifier.width(112.dp * Escala.fator()).tvFocus(10.dp).clickable { onClick(item) }) {
+        Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(forma).border(0.5.dp, LabTheme.glassBorder, forma)) {
+            // Episódio solto mostra o cartaz da série: a cena dele, cortada em
+            // pé, não diria de onde ele é.
+            val id = if (item.tipo == "Episode") item.serieId ?: item.id else item.id
+            ImagemDoServidor(servidor, id, listOf("Primary"), 300, Modifier.fillMaxSize(), Icons.Filled.Tv)
+            val marca = Modifier.align(Alignment.TopEnd).padding(6.dp)
+            when {
+                item.naoVistos != null -> Text(
+                    item.naoVistos.toString(), color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                    modifier = marca.clip(CircleShape).background(LabTheme.accent).padding(horizontal = 7.dp, vertical = 2.dp),
+                )
+                item.visto -> Icon(
+                    Icons.Filled.Check, null, tint = Color.Black,
+                    modifier = marca.size(20.dp).clip(CircleShape).background(LabTheme.accent).padding(3.dp),
+                )
+            }
+            Progresso(item.progresso)
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            if (item.tipo == "Episode") item.serie ?: item.nome else item.nome,
+            color = LabTheme.text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+            maxLines = 1, overflow = TextOverflow.Ellipsis,
+        )
+        item.ano?.let { Text(it.toString(), color = LabTheme.faint, fontSize = 11.sp) }
+    }
+}
+
+@Composable
+private fun CartaoDeBiblioteca(servidor: ServidorDeMidia, biblioteca: Item, onClick: (Item) -> Unit) {
+    val forma = RoundedCornerShape(12.dp)
+    Column(Modifier.width(176.dp * Escala.fator()).tvFocus(12.dp).clickable { onClick(biblioteca) }) {
+        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(forma).border(0.5.dp, LabTheme.glassBorder, forma)) {
+            ImagemDoServidor(servidor, biblioteca.id, listOf("Primary"), 400, Modifier.fillMaxSize())
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            biblioteca.nome, color = LabTheme.text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+            maxLines = 1, overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun BoxScope.Progresso(progresso: Float?) {
+    if (progresso == null) return
+    Box(
+        Modifier.align(Alignment.BottomStart).fillMaxWidth().height(3.dp)
+            .background(Color.White.copy(alpha = 0.25f))
+    ) {
+        Box(Modifier.fillMaxHeight().fillMaxWidth(progresso.coerceAtLeast(0.03f)).background(LabTheme.accent))
+    }
+}
+
+/**
+ * Cartazes e cenas que o servidor já tem prontos — diferente das miniaturas
+ * das pastas, aqui não há quadro a tirar do vídeo, só a imagem a baixar.
+ */
+private object CapasDoServidor {
+    val cache = object : LruCache<String, Bitmap>(20 * 1024 * 1024) {
+        override fun sizeOf(key: String, value: Bitmap) = value.byteCount
+    }
+    val falharam: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    val limite = Semaphore(4)
+}
+
+@Composable
+private fun ImagemDoServidor(
+    servidor: ServidorDeMidia,
+    id: String,
+    tipos: List<String>,
+    largura: Int,
+    modifier: Modifier,
+    semImagem: androidx.compose.ui.graphics.vector.ImageVector = Icons.Filled.Movie,
+) {
+    val chave = "${servidor.contaId}/$id/${tipos.joinToString(",")}"
+    val imagem by produceState(CapasDoServidor.cache.get(chave), chave) {
+        if (value != null || chave in CapasDoServidor.falharam) return@produceState
+        val baixada = CapasDoServidor.limite.withPermit { servidor.imagem(id, tipos, largura) }
+        if (baixada != null) CapasDoServidor.cache.put(chave, baixada) else CapasDoServidor.falharam += chave
+        value = baixada
+    }
+    Box(
+        modifier.background(Brush.linearGradient(listOf(Color(0xFF232228), Color(0xFF16161A)))),
+        contentAlignment = Alignment.Center,
+    ) {
+        val pronta = imagem
+        if (pronta != null) {
+            Image(pronta.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        } else {
+            Icon(semImagem, null, tint = LabTheme.faint, modifier = Modifier.size(22.dp))
+        }
+    }
+}

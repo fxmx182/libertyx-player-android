@@ -48,6 +48,7 @@ import com.mauricio.libertyx.pro.ProActivity
 import com.mauricio.libertyx.core.Device
 import com.mauricio.libertyx.core.PlayerPreferences
 import com.mauricio.libertyx.core.ResumeStore
+import com.mauricio.libertyx.rede.AvisoAoServidor
 import com.mauricio.libertyx.core.TimeFormat
 import com.mauricio.libertyx.core.resumeKey
 import com.mauricio.libertyx.databinding.ActivityPlayerBinding
@@ -96,6 +97,7 @@ class PlayerActivity : Activity() {
     private lateinit var prefs: PlayerPreferences
     private lateinit var audio: AudioManager
     private lateinit var resume: ResumeStore
+    private val aviso by lazy { AvisoAoServidor(this) }
 
     private val main = Handler(Looper.getMainLooper())
 
@@ -311,6 +313,7 @@ class PlayerActivity : Activity() {
         main.removeCallbacksAndMessages(null)
         if (::engine.isInitialized) {
             saveResumeNow()
+            aviso.parou(engine.currentTime)
             engine.detach()
             engine.teardown()
         }
@@ -483,6 +486,7 @@ class PlayerActivity : Activity() {
             } else {
                 updateProgress(tempo)
                 saveResumePoint(tempo)
+                aviso.andou(tempo, pausado = false)
             }
         }
         engine.onBufferingChange = { carregando ->
@@ -500,6 +504,8 @@ class PlayerActivity : Activity() {
         when (estado) {
             is PlaybackState.Failed -> presentError(estado.message)
             PlaybackState.Ended -> handlePlaybackEnded()
+            PlaybackState.Paused -> aviso.andou(engine.currentTime, pausado = true)
+            PlaybackState.Playing -> aviso.andou(engine.currentTime, pausado = false)
             else -> {}
         }
     }
@@ -519,6 +525,7 @@ class PlayerActivity : Activity() {
         // Retomar é pergunta, não regra: às vezes se quer rever o filme desde o
         // começo, e voltar sozinho ao meio obriga a desfazer na mão toda vez.
         val retomada = resume.position(alvo.origin.resumeKey)
+        aviso.comecou(alvo, retomada ?: 0.0)
         if (retomada != null && prefs.askToResume) {
             perguntarRetomada(retomada)
         } else {
@@ -618,6 +625,8 @@ class PlayerActivity : Activity() {
         }
         // Quem assistiu até o fim não quer voltar para os créditos na próxima.
         item?.let { resume.clear(it.origin.resumeKey) }
+        // No fim, e não onde o tempo parou de contar: é o que marca como visto.
+        aviso.parou(engine.duration)
 
         if (isShuffling && Playback.queue.size > 1) goToNext()
         else if (Playback.index + 1 < Playback.queue.size) goToNext()
@@ -627,6 +636,7 @@ class PlayerActivity : Activity() {
     private fun switchTo(indice: Int) {
         if (indice !in Playback.queue.indices) return
         saveResumeNow()
+        aviso.parou(engine.currentTime)
 
         Playback.index = indice
         item = Playback.queue[indice]

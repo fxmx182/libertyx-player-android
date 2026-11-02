@@ -424,6 +424,8 @@ fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit) {
     LaunchedEffect(atual) {
         conteudo = null
         erro = null
+        // O começo de um Jellyfin ou Emby é a tela de faixas, que se carrega sozinha.
+        if (atual is Nivel.Bibliotecas) return@LaunchedEffect
         runCatching { ler(conta, loja.segredo(conta), atual) }
             .onSuccess { conteudo = it }
             .onFailure { erro = it.message ?: it.javaClass.simpleName }
@@ -457,7 +459,7 @@ fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit) {
                         }
                     },
                     actions = {
-                        if (!naTv) {
+                        if (!naTv && atual !is Nivel.Bibliotecas) {
                             IconButton(onClick = { mostrandoOpcoes = true }) {
                                 Icon(Icons.Filled.Tune, contentDescription = stringResource(R.string.exibicao))
                             }
@@ -475,6 +477,7 @@ fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit) {
             Box(Modifier.padding(padding).fillMaxSize()) {
                 val pronto = conteudo
                 when {
+                    atual is Nivel.Bibliotecas -> InicioDoServidor(conta) { pilha = pilha + Nivel.Item(it.titulo, it) }
                     erro != null -> Text(
                         erro!!,
                         color = LabTheme.muted, textAlign = TextAlign.Center, fontSize = 13.sp,

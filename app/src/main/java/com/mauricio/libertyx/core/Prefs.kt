@@ -155,6 +155,25 @@ class ResumeStore private constructor(context: Context) {
         persist()
     }
 
+    /**
+     * O que o servidor diz de um vídeo visto em outro aparelho.
+     *
+     * Vale a marca mais recente: a daqui só dá lugar à de lá quando a de lá é
+     * mais nova. Visto até o fim, ou recomeçado lá, apaga a daqui.
+     */
+    @Synchronized
+    fun mesclar(key: String, position: Double?, duration: Double, at: Long, watched: Boolean) {
+        val local = marcas[key]
+        if (local != null && local.updatedAt >= at) return
+        if (watched || position == null || position <= 0) {
+            if (local != null) clear(key)
+            return
+        }
+        if (local?.position == position) return
+        marcas[key] = Marca(position, duration, at)
+        persist()
+    }
+
     /** Ao terminar: quem assistiu até o fim não quer voltar para os créditos. */
     fun clear(key: String) {
         if (marcas.remove(key) != null) persist()
