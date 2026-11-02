@@ -7,9 +7,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.foundation.layout.widthIn
 import com.mauricio.libertyx.core.Historico
 import com.mauricio.libertyx.rede.AtalhoDeServidor
-import com.mauricio.libertyx.rede.EscolhaDeTipoDeServidor
-import com.mauricio.libertyx.rede.NovoServidor
-import androidx.compose.material.icons.filled.Add
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -59,7 +56,6 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -104,7 +100,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.mauricio.libertyx.BuildConfig
 import com.mauricio.libertyx.R
 import com.mauricio.libertyx.core.LabTheme
 import com.mauricio.libertyx.core.Escala
@@ -130,9 +125,6 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import com.mauricio.libertyx.core.Textos
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.runtime.collectAsState
-import com.mauricio.libertyx.pro.ProActivity
-import com.mauricio.libertyx.core.Pro
 
 /**
  * Tela inicial: todos os vídeos do aparelho, agrupados por pasta.
@@ -152,16 +144,15 @@ import com.mauricio.libertyx.core.Pro
 @Composable
 fun LibraryScreen(
     onOpenServers: () -> Unit,
-    onAdicionarServidor: (NovoServidor) -> Unit = {},
     onAtalho: (AtalhoDeServidor) -> Unit = {},
-    onGuia: () -> Unit = {},
 ) {
     val contexto = LocalContext.current
     val escopo = rememberCoroutineScope()
     val opcoes = remember { LibraryOptions(contexto) }
 
-    var grupos by remember { mutableStateOf<List<VideoGroup>>(emptyList()) }
-    var varrendo by remember { mutableStateOf(true) }
+    // A última varredura, para voltar de outra aba sem a tela piscar vazia.
+    var grupos by remember { mutableStateOf(MediaLibrary.ultima ?: emptyList()) }
+    var varrendo by remember { mutableStateOf(MediaLibrary.ultima == null) }
     var puxando by remember { mutableStateOf(false) }
     val estadoDoPuxar = rememberPullToRefreshState()
     var mostrandoOpcoes by remember { mutableStateOf(false) }
@@ -169,7 +160,7 @@ fun LibraryScreen(
     val volta = rememberVoltaAoApp()
 
     suspend fun varrer() {
-        varrendo = true
+        varrendo = grupos.isEmpty()
         grupos = MediaLibrary.scan(contexto)
         varrendo = false
     }
@@ -247,10 +238,6 @@ fun LibraryScreen(
                     onRemoverDoHistorico = removerDoHistorico,
                     volta = volta,
                     onAbrir = { caminhoAberto = it.path },
-                    onServidores = onOpenServers,
-                    onAdicionarServidor = onAdicionarServidor,
-                    onOpcoes = { mostrandoOpcoes = true },
-                    onVarrer = { escopo.launch { varrer() } },
                 )
                 else -> Pasta(
                     grupo = pasta,
@@ -262,10 +249,7 @@ fun LibraryScreen(
                     onAtalho = onAtalho,
                     onRemoverDoHistorico = removerDoHistorico,
                     onVoltar = { caminhoAberto = null },
-                    onServidores = onOpenServers,
-                    onAdicionarServidor = onAdicionarServidor,
                     onOpcoes = { mostrandoOpcoes = true },
-                    onVarrer = { escopo.launch { varrer() } },
                 )
             }
         }
@@ -273,7 +257,7 @@ fun LibraryScreen(
 
         if (varrendo && !puxando) {
             Row(
-                Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 18.dp)
+                Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 96.dp)
                     .clip(CircleShape).background(LabTheme.surface.copy(alpha = 0.92f))
                     .border(0.5.dp, LabTheme.glassBorder, CircleShape)
                     .padding(horizontal = 16.dp, vertical = 9.dp),
@@ -291,7 +275,7 @@ fun LibraryScreen(
             onDismissRequest = { mostrandoOpcoes = false; opcoes.save() },
             containerColor = LabTheme.surface,
         ) {
-            OpcoesDaBiblioteca(opcoes, onGuia = { mostrandoOpcoes = false; opcoes.save(); onGuia() })
+            OpcoesDaBiblioteca(opcoes)
         }
     }
 }
@@ -303,7 +287,7 @@ fun LibraryScreen(
  * faixa de "continuar" mostraria o ponto de antes do filme.
  */
 @Composable
-private fun rememberVoltaAoApp(): Int {
+internal fun rememberVoltaAoApp(): Int {
     val dono = LocalLifecycleOwner.current
     var voltas by remember { mutableIntStateOf(0) }
     DisposableEffect(dono) {
@@ -317,10 +301,10 @@ private fun rememberVoltaAoApp(): Int {
 }
 
 /** A capa de uma pasta: o vídeo mais novo dela, que é o que se reconhece. */
-private fun capaDa(grupo: VideoGroup): MediaItem? =
+internal fun capaDa(grupo: VideoGroup): MediaItem? =
     grupo.items.maxByOrNull { it.modifiedAt ?: 0L } ?: grupo.items.firstOrNull()
 
-private fun resumoDa(grupo: VideoGroup): String {
+internal fun resumoDa(grupo: VideoGroup): String {
     val n = grupo.items.size
     val tamanho = TimeFormat.size(grupo.items.sumOf { it.fileSize ?: 0L })
     return listOfNotNull(Textos.plural(R.plurals.n_videos, n, n), tamanho).joinToString("  ·  ")
@@ -328,18 +312,19 @@ private fun resumoDa(grupo: VideoGroup): String {
 
 /** Margens de fora a fora: a área segura do aparelho mais o respiro da tela. */
 @Composable
-private fun margens(): PaddingValues {
+internal fun margens(): PaddingValues {
     val seguro = WindowInsets.safeDrawing.asPaddingValues()
     val direcao = LocalLayoutDirection.current
     return PaddingValues(
         start = seguro.calculateStartPadding(direcao) + 20.dp,
         end = seguro.calculateEndPadding(direcao) + 20.dp,
         top = seguro.calculateTopPadding() + 8.dp,
-        bottom = seguro.calculateBottomPadding() + 72.dp,
+        // A dock flutua por cima do fim da lista.
+        bottom = seguro.calculateBottomPadding() + 104.dp,
     )
 }
 
-private fun LazyGridScope.inteiro(key: String, conteudo: @Composable () -> Unit) =
+internal fun LazyGridScope.inteiro(key: String, conteudo: @Composable () -> Unit) =
     item(key = key, span = { GridItemSpan(maxLineSpan) }) { conteudo() }
 
 // ─── A estante ──────────────────────────────────────────────────────────────
@@ -353,12 +338,7 @@ private fun Estante(
     onRemoverDoHistorico: (MediaItem) -> Unit,
     volta: Int,
     onAbrir: (VideoGroup) -> Unit,
-    onServidores: () -> Unit,
-    onAdicionarServidor: (NovoServidor) -> Unit,
-    onOpcoes: () -> Unit,
-    onVarrer: () -> Unit,
 ) {
-    val contexto = LocalContext.current
     val total = grupos.sumOf { it.items.size }
 
     LazyVerticalGrid(
@@ -368,12 +348,7 @@ private fun Estante(
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        inteiro("barra") {
-            BarraDoTopo(
-                onVoltar = null, onServidores = onServidores, onAdicionarServidor = onAdicionarServidor,
-                onOpcoes = onOpcoes, onVarrer = onVarrer,
-            )
-        }
+        inteiro("barra") { BarraDoTopo(onVoltar = null, onOpcoes = null) }
         inteiro("titulo") {
             Titulo(
                 stringResource(R.string.biblioteca),
@@ -394,24 +369,15 @@ private fun Estante(
     }
 }
 
+/**
+ * O alto da tela: a marca, ou a seta de voltar dentro de uma pasta.
+ *
+ * Os botões que moravam aqui (servidores, exibição, procurar de novo, "+")
+ * foram para a dock e para os Ajustes. Só a exibição fica dentro da pasta,
+ * onde ela age sobre o que está na tela.
+ */
 @Composable
-private fun BarraDoTopo(
-    onVoltar: (() -> Unit)?,
-    onServidores: () -> Unit,
-    onAdicionarServidor: (NovoServidor) -> Unit,
-    onOpcoes: () -> Unit,
-    onVarrer: () -> Unit,
-) {
-    var escolhendoTipo by remember { mutableStateOf(false) }
-    if (escolhendoTipo) {
-        EscolhaDeTipoDeServidor(
-            onEscolher = { tipo ->
-                escolhendoTipo = false
-                onAdicionarServidor(NovoServidor(tipo))
-            },
-            onCancel = { escolhendoTipo = false },
-        )
-    }
+internal fun BarraDoTopo(onVoltar: (() -> Unit)?, onOpcoes: (() -> Unit)?) {
     Row(
         Modifier.fillMaxWidth().height(52.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -422,27 +388,13 @@ private fun BarraDoTopo(
             Marca()
         }
         Spacer(Modifier.weight(1f))
-        // Dentro da pasta, só o que age sobre ela: rede e nova varredura são
-        // assunto da estante, e repeti-los aqui só disputaria atenção.
-        if (onVoltar == null) {
-            BotaoRedondo(Icons.Filled.Dns, stringResource(R.string.servidores), onServidores)
-            Spacer(Modifier.width(10.dp))
-        }
-        BotaoRedondo(Icons.Filled.Tune, stringResource(R.string.exibicao), onOpcoes)
-        if (onVoltar == null) {
-            Spacer(Modifier.width(10.dp))
-            BotaoRedondo(Icons.Filled.Refresh, stringResource(R.string.procurar_de_novo), onVarrer)
-            // O lugar onde se procura "adicionar" é o "+": o ícone de
-            // servidores passava despercebido.
-            Spacer(Modifier.width(10.dp))
-            BotaoRedondo(Icons.Filled.Add, stringResource(R.string.adicionar_servidor)) { escolhendoTipo = true }
-        }
+        if (onOpcoes != null) BotaoRedondo(Icons.Filled.Tune, stringResource(R.string.exibicao), onOpcoes)
     }
 }
 
 /** O símbolo e o nome, com o X na cor da marca — o app se apresenta. */
 @Composable
-private fun Marca() {
+internal fun Marca() {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Image(painterResource(R.drawable.ic_marca), null, Modifier.size(30.dp))
         Spacer(Modifier.width(10.dp))
@@ -452,7 +404,7 @@ private fun Marca() {
 
 /** "LibertyX", com o X na cor da marca. */
 @Composable
-private fun NomeDoApp(tamanho: TextUnit) {
+internal fun NomeDoApp(tamanho: TextUnit) {
     Text(
         buildAnnotatedString {
             append("Liberty")
@@ -464,7 +416,7 @@ private fun NomeDoApp(tamanho: TextUnit) {
 }
 
 @Composable
-private fun BotaoRedondo(icone: ImageVector, descricao: String, onClick: () -> Unit) {
+internal fun BotaoRedondo(icone: ImageVector, descricao: String, onClick: () -> Unit) {
     Box(
         Modifier.size(40.dp).tvFocus(20.dp).clip(CircleShape)
             .background(Color.White.copy(alpha = 0.08f))
@@ -477,7 +429,7 @@ private fun BotaoRedondo(icone: ImageVector, descricao: String, onClick: () -> U
 }
 
 @Composable
-private fun Titulo(titulo: String, subtitulo: String) {
+internal fun Titulo(titulo: String, subtitulo: String) {
     Column(Modifier.padding(top = 10.dp, bottom = 2.dp)) {
         Text(titulo, style = LabTheme.headline, maxLines = 2, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(4.dp))
@@ -486,7 +438,7 @@ private fun Titulo(titulo: String, subtitulo: String) {
 }
 
 @Composable
-private fun Secao(titulo: String, extra: String? = null) {
+internal fun Secao(titulo: String, extra: String? = null) {
     Row(Modifier.padding(top = 4.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         // Um traço dourado antes do título: marca a seção sem precisar de
         // linha divisória atravessando a tela.
@@ -703,7 +655,7 @@ private fun CartaoDeContinuar(item: MediaItem, volta: Int, onRemover: () -> Unit
 // ─── Dentro da pasta ────────────────────────────────────────────────────────
 
 @Composable
-private fun Pasta(
+internal fun Pasta(
     grupo: VideoGroup,
     opcoes: LibraryOptions,
     volta: Int,
@@ -713,10 +665,7 @@ private fun Pasta(
     onAtalho: (AtalhoDeServidor) -> Unit,
     onRemoverDoHistorico: (MediaItem) -> Unit,
     onVoltar: () -> Unit,
-    onServidores: () -> Unit,
-    onAdicionarServidor: (NovoServidor) -> Unit,
     onOpcoes: () -> Unit,
-    onVarrer: () -> Unit,
 ) {
     val contexto = LocalContext.current
     // A lista de reprodução segue a ordem exibida — "próxima" deve ir para o
@@ -731,13 +680,7 @@ private fun Pasta(
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalArrangement = Arrangement.spacedBy(if (emGrade) 18.dp else 4.dp),
     ) {
-        inteiro("barra") {
-            BarraDoTopo(
-                onVoltar = if (raiz) null else onVoltar,
-                onServidores = onServidores, onAdicionarServidor = onAdicionarServidor,
-                onOpcoes = onOpcoes, onVarrer = onVarrer,
-            )
-        }
+        inteiro("barra") { BarraDoTopo(onVoltar = if (raiz) null else onVoltar, onOpcoes = onOpcoes) }
         inteiro("titulo") {
             Box(Modifier.padding(bottom = if (emGrade) 0.dp else 10.dp)) {
                 Titulo(if (raiz) stringResource(R.string.biblioteca) else grupo.name, resumoDa(grupo))
@@ -886,7 +829,7 @@ private fun BoxScope.BarraDeProgresso(progresso: Float?) {
  * você ia tocar se mexer no instante do toque.
  */
 @Composable
-private fun ImagemDe(item: MediaItem?, modifier: Modifier) {
+internal fun ImagemDe(item: MediaItem?, modifier: Modifier) {
     val contexto = LocalContext.current
     val imagem by produceState(
         initialValue = item?.let { Thumbnails.cached(it) }, key1 = item?.id,
@@ -977,7 +920,7 @@ internal fun CartaoDeDemonstracao() {
 
 /** Folha de opções, no espírito da do MX Player. */
 @Composable
-internal fun OpcoesDaBiblioteca(opcoes: LibraryOptions, onGuia: (() -> Unit)? = null) {
+internal fun OpcoesDaBiblioteca(opcoes: LibraryOptions) {
     // Rola: com a fonte grande ou o celular deitado, o fim da folha (a ajuda
     // e a versão) passava da tela.
     Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 22.dp).padding(top = 4.dp, bottom = 20.dp)) {
@@ -1015,44 +958,12 @@ internal fun OpcoesDaBiblioteca(opcoes: LibraryOptions, onGuia: (() -> Unit)? = 
             Pilula(stringResource(R.string.decrescente), !opcoes.ascending, Modifier.weight(1f)) { opcoes.ascending = false }
         }
 
-        if (onGuia != null) {
-            Spacer(Modifier.height(20.dp))
-            Secao(stringResource(R.string.ajuda))
-            Pilula(stringResource(R.string.ver_guia), false, Modifier.fillMaxWidth(), onGuia)
-        }
-
-        // O Pro e as licenças moram aqui, no fim das opções: à mão de quem
-        // procura, fora do caminho de quem só quer ver um filme.
-        Spacer(Modifier.height(20.dp))
-        Secao(stringResource(R.string.pro_menu))
-        val contexto = LocalContext.current
-        val estadoPro by Pro.estado.collectAsState()
-        val rotuloPro = when (val e = estadoPro) {
-            is Pro.Estado.Comprado -> stringResource(R.string.pro_ativo)
-            is Pro.Estado.Teste -> pluralStringResource(R.plurals.pro_teste_restam, e.diasRestantes, e.diasRestantes)
-            Pro.Estado.Expirado -> stringResource(R.string.pro_menu)
-        }
-        Pilula(rotuloPro, estadoPro is Pro.Estado.Comprado, Modifier.fillMaxWidth()) { ProActivity.abrir(contexto) }
-        Spacer(Modifier.height(10.dp))
-        Pilula(stringResource(R.string.licencas), false, Modifier.fillMaxWidth()) { ProActivity.abrir(contexto, licencas = true) }
-
-        Spacer(Modifier.height(26.dp))
-        // Qual build está instalado, à mão.
-        //
-        // Sem isto, "a mudança não funcionou" e "instalei o APK antigo" são a
-        // mesma tela — e levam a investigações opostas.
-        Text(
-            "LibertyX Player ${BuildConfig.VERSION_NAME} · ${BuildConfig.COMMIT}",
-            color = LabTheme.faint,
-            fontSize = 11.sp,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center,
-        )
+        // Ajuda, Pro, licenças e a versão moram nos Ajustes.
     }
 }
 
 @Composable
-private fun Pilula(texto: String, ativo: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+internal fun Pilula(texto: String, ativo: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val forma = RoundedCornerShape(14.dp)
     Row(
         modifier.tvFocus(14.dp, scale = 1.03f).clip(forma)

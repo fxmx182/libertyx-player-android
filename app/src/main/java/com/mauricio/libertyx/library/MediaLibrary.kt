@@ -24,6 +24,10 @@ import com.mauricio.libertyx.R
  */
 object MediaLibrary {
 
+    /** A varredura mais recente: as abas mostram isto enquanto varrem de novo. */
+    @Volatile var ultima: List<VideoGroup>? = null
+        private set
+
     suspend fun scan(context: Context): List<VideoGroup> = withContext(Dispatchers.IO) {
         val colunas = arrayOf(
             MediaStore.Video.Media._ID,
@@ -93,7 +97,7 @@ object MediaLibrary {
                 // Ordem natural: "Ep 2" antes de "Ep 10".
                 items = itens.sortedWith(compareBy(NATURAL) { it.title }),
             )
-        }.sortedWith(compareBy(NATURAL) { it.name })
+        }.sortedWith(compareBy(NATURAL) { it.name }).also { ultima = it }
     }
 
     /**

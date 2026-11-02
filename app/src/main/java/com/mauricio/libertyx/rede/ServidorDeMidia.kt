@@ -38,6 +38,8 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
         val ano: Int?,
         val numero: Int?,
         val criado: Long?,
+        /** Episódio: a série de que ele faz parte — na busca, é o que o situa. */
+        val serie: String? = null,
     ) {
         /**
          * Episódio com o número na frente, filme com o ano: é como se acha o
@@ -80,6 +82,20 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
         }
         return lista(pedir("/Users/$usuarioId/Items", consulta))
     }
+
+    /** Filmes e episódios cujo nome tem [termo], de todas as bibliotecas. */
+    suspend fun buscar(termo: String): List<Item> = lista(
+        pedir(
+            "/Users/$usuarioId/Items",
+            listOf(
+                "searchTerm" to termo,
+                "Recursive" to "true",
+                "IncludeItemTypes" to "Movie,Episode,Video,MusicVideo",
+                "Fields" to "DateCreated",
+                "Limit" to "40",
+            ),
+        )
+    ).filter { it.ehVideo }
 
     /** O arquivo original, sem conversão (`static=true`). */
     fun urlDoVideo(id: String): Uri? =
@@ -159,6 +175,7 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
                 numero = if (o.has("IndexNumber")) o.optInt("IndexNumber") else null,
                 criado = o.optString("DateCreated").takeIf { it.length >= 19 }
                     ?.let { runCatching { formatoDeData().parse(it.take(19))?.time }.getOrNull() },
+                serie = o.optString("SeriesName").ifEmpty { null },
             )
         }
     }

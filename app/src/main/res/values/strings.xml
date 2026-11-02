@@ -322,4 +322,36 @@
     <string name="conta_midia_explica">The password is only used to sign in. The app keeps the access key the server returns, encrypted on the device, and plays the original files, without conversion.</string>
     <string name="historico">History</string>
     <string name="remover_do_historico">Remove from history</string>
+    <string name="aba_inicio">Home</string>
+    <string name="aba_arquivos">Files</string>
+    <string name="aba_procurar">Search</string>
+    <string name="aba_ajustes">Settings</string>
+    <string name="webdav_nextcloud">WebDAV / Nextcloud</string>
+    <string name="adicionar_webdav">Add WebDAV</string>
+    <string name="servidores_sub">SMB, Jellyfin and Emby</string>
+    <string name="webdav_sub">Nextcloud, ownCloud and others</string>
+    <string name="exibicao_sub">Grid or list, and sort order</string>
+    <string name="reproducao">Playback</string>
+    <string name="reproducao_sub">Controls, speed and resume</string>
+    <string name="ao_reabrir">When reopening a video</string>
+    <string name="perguntar">Ask</string>
+    <string name="retomar_direto">Resume right away</string>
+    <string name="fale_com_a_gente">Talk to us</string>
+    <string name="compartilhar_app">Share LibertyX</string>
+    <string name="compartilhar_texto">LibertyX Player plays any video, from your phone or straight from your home server: %1$s</string>
+    <string name="seguir_no_x">Follow us on X</string>
+    <string name="em_breve">Soon</string>
+    <string name="x_em_breve">Our X profile is coming soon.</string>
+    <string name="enviar_email">Email us</string>
+    <string name="sem_app_de_email">No email app found. Write to %1$s</string>
+    <string name="procurar_explica">Videos on this device and on Jellyfin and Emby</string>
+    <string name="procurar_dica">Movie, episode, file name…</string>
+    <string name="procurando_nos_servidores">Searching the servers…</string>
+    <string name="nada_encontrado">Nothing found for “%1$s”.</string>
+    <string name="limpar">Clear</string>
+    <plurals name="n_servidores">
+        <item quantity="one">%1$d server</item>
+        <item quantity="other">%1$d servers</item>
+    </plurals>
+    <string name="preferencias">Preferences</string>
 </resources>

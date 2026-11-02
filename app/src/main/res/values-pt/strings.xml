@@ -321,4 +321,36 @@
     <string name="conta_midia_explica">A senha serve só para entrar. O app guarda a chave de acesso que o servidor devolve, cifrada no aparelho, e toca os arquivos originais, sem conversão.</string>
     <string name="historico">Histórico</string>
     <string name="remover_do_historico">Remover do histórico</string>
+    <string name="aba_inicio">Início</string>
+    <string name="aba_arquivos">Arquivos</string>
+    <string name="aba_procurar">Procurar</string>
+    <string name="aba_ajustes">Ajustes</string>
+    <string name="webdav_nextcloud">WebDAV / Nextcloud</string>
+    <string name="adicionar_webdav">Adicionar WebDAV</string>
+    <string name="servidores_sub">SMB, Jellyfin e Emby</string>
+    <string name="webdav_sub">Nextcloud, ownCloud e outros</string>
+    <string name="exibicao_sub">Grade ou lista, e a ordem</string>
+    <string name="reproducao">Reprodução</string>
+    <string name="reproducao_sub">Controles, velocidade e retomada</string>
+    <string name="ao_reabrir">Ao reabrir um vídeo</string>
+    <string name="perguntar">Perguntar</string>
+    <string name="retomar_direto">Retomar direto</string>
+    <string name="fale_com_a_gente">Fale com a gente</string>
+    <string name="compartilhar_app">Compartilhar o LibertyX</string>
+    <string name="compartilhar_texto">O LibertyX Player toca qualquer vídeo, do celular ou direto do servidor de casa: %1$s</string>
+    <string name="seguir_no_x">Seguir no X</string>
+    <string name="em_breve">Em breve</string>
+    <string name="x_em_breve">Nosso perfil no X chega em breve.</string>
+    <string name="enviar_email">Enviar um email</string>
+    <string name="sem_app_de_email">Nenhum app de email encontrado. Escreva para %1$s</string>
+    <string name="procurar_explica">Vídeos do aparelho e dos servidores Jellyfin e Emby</string>
+    <string name="procurar_dica">Filme, episódio, nome do arquivo…</string>
+    <string name="procurando_nos_servidores">Procurando nos servidores…</string>
+    <string name="nada_encontrado">Nada encontrado para “%1$s”.</string>
+    <string name="limpar">Limpar</string>
+    <plurals name="n_servidores">
+        <item quantity="one">%1$d servidor</item>
+        <item quantity="other">%1$d servidores</item>
+    </plurals>
+    <string name="preferencias">Preferências</string>
 </resources>

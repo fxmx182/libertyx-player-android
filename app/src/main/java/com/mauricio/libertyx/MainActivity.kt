@@ -40,6 +40,12 @@ import com.mauricio.libertyx.guia.GuiaDeBoasVindas
 import com.mauricio.libertyx.core.LabTheme
 import com.mauricio.libertyx.core.LibertyXTheme
 import com.mauricio.libertyx.library.LibraryScreen
+import com.mauricio.libertyx.library.Aba
+import com.mauricio.libertyx.library.AjustesScreen
+import com.mauricio.libertyx.library.ArquivosScreen
+import com.mauricio.libertyx.library.Dock
+import com.mauricio.libertyx.library.ProcurarScreen
+import com.mauricio.libertyx.rede.GrupoDeServidores
 import com.mauricio.libertyx.tv.TvHomeScreen
 import com.mauricio.libertyx.rede.AtalhoDeServidor
 import com.mauricio.libertyx.rede.ContaDeRede
@@ -58,12 +64,16 @@ import androidx.compose.ui.res.stringResource
  * um `NavController` e um contrato de argumentos serializados.
  */
 private sealed interface Screen {
+    /** As abas da dock (no celular) ou a tela da TV. */
     data object Library : Screen
-    /** [cadastro]: o "+" da biblioteca pediu para já abrir o formulário. */
-    data class Servers(val cadastro: NovoServidor? = null) : Screen
-    /** [daBiblioteca]: aberto pelo atalho da tela inicial, e voltar leva para lá. */
-    data class Browser(val server: SmbServer, val daBiblioteca: Boolean = false) : Screen
-    data class Conta(val conta: ContaDeRede, val daBiblioteca: Boolean = false) : Screen
+    /** [cadastro]: já abrir o formulário deste tipo. [grupo]: que parte dos cadastros mostrar. */
+    data class Servers(
+        val cadastro: NovoServidor? = null,
+        val grupo: GrupoDeServidores = GrupoDeServidores.TODOS,
+    ) : Screen
+    /** [volta]: de onde se veio — uma aba ou a lista de servidores. */
+    data class Browser(val server: SmbServer, val volta: Screen) : Screen
+    data class Conta(val conta: ContaDeRede, val volta: Screen) : Screen
 }
 
 class MainActivity : ComponentActivity() {
@@ -89,6 +99,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun App() {
     var tela by remember { mutableStateOf<Screen>(Screen.Library) }
+    var aba by rememberSaveable { mutableStateOf(Aba.INICIO) }
 
     // O botão "voltar" do Android tem que voltar dentro do app, e não sair
     // dele. Sem isto, sair da tela de servidores fecha o LibertyX — e como a
@@ -108,42 +119,71 @@ private fun App() {
         return
     }
 
-    when (val atual = tela) {
-        // A mesma origem de dados nos dois casos; o que muda é a tela — grade
-        // para o dedo, faixas para o controle remoto.
-        is Screen.Library -> ComPermissao(bloqueia = !naTv) {
-            // A rede é Pro: depois do teste, a porta leva à tela de compra.
-            val abrirRede = { cadastro: NovoServidor? ->
-                if (ProActivity.exigir(contexto, Pro.Recurso.REDE)) tela = Screen.Servers(cadastro)
+    // A rede é Pro: depois do teste, a porta leva à tela de compra.
+    val abrirServidores = { grupo: GrupoDeServidores ->
+        if (ProActivity.exigir(contexto, Pro.Recurso.REDE)) tela = Screen.Servers(grupo = grupo)
+    }
+    val abrirAtalho = { atalho: AtalhoDeServidor ->
+        if (ProActivity.exigir(contexto, Pro.Recurso.REDE)) {
+            tela = when (atalho) {
+                is AtalhoDeServidor.Smb -> Screen.Browser(atalho.servidor, volta = Screen.Library)
+                is AtalhoDeServidor.Conta -> Screen.Conta(atalho.conta, volta = Screen.Library)
             }
-            if (naTv) TvHomeScreen(onOpenServers = { abrirRede(null) })
-            else LibraryScreen(
-                onOpenServers = { abrirRede(null) },
-                onAdicionarServidor = { abrirRede(it) },
-                onAtalho = { atalho ->
-                    if (ProActivity.exigir(contexto, Pro.Recurso.REDE)) {
-                        tela = when (atalho) {
-                            is AtalhoDeServidor.Smb -> Screen.Browser(atalho.servidor, daBiblioteca = true)
-                            is AtalhoDeServidor.Conta -> Screen.Conta(atalho.conta, daBiblioteca = true)
-                        }
+        }
+    }
+
+    when (val atual = tela) {
+        // A mesma origem de dados nos dois casos; o que muda é a tela — abas
+        // com dock para o dedo, faixas para o controle remoto.
+        is Screen.Library -> if (naTv) {
+            ComPermissao(bloqueia = false) {
+                TvHomeScreen(onOpenServers = { abrirServidores(GrupoDeServidores.TODOS) })
+            }
+        } else {
+            // Voltar numa aba que não é a primeira leva ao Início, e só de lá
+            // o app fecha — como em todo app de abas do Android.
+            BackHandler(enabled = aba != Aba.INICIO) { aba = Aba.INICIO }
+            Box(Modifier.fillMaxSize()) {
+                when (aba) {
+                    // Sem a permissão só as abas de vídeo do aparelho trancam:
+                    // os Ajustes e a busca nos servidores seguem à mão.
+                    Aba.INICIO -> ComPermissao {
+                        LibraryScreen(
+                            onOpenServers = { abrirServidores(GrupoDeServidores.SERVIDORES) },
+                            onAtalho = abrirAtalho,
+                        )
                     }
-                },
-                onGuia = { mostrandoGuia = true },
-            )
+                    Aba.ARQUIVOS -> ComPermissao {
+                        ArquivosScreen(
+                            onAtalho = abrirAtalho,
+                            onAdicionarServidor = { aba = Aba.AJUSTES },
+                        )
+                    }
+                    Aba.PROCURAR -> ProcurarScreen()
+                    Aba.AJUSTES -> AjustesScreen(
+                        onServidores = { abrirServidores(GrupoDeServidores.SERVIDORES) },
+                        onWebDav = { abrirServidores(GrupoDeServidores.WEBDAV) },
+                        onGuia = { mostrandoGuia = true },
+                    )
+                }
+                Dock(aba, onAba = { aba = it }, modifier = Modifier.align(Alignment.BottomCenter))
+            }
         }
         is Screen.Servers -> SmbServersScreen(
             onBack = { tela = Screen.Library },
-            onOpen = { servidor -> tela = Screen.Browser(servidor) },
-            onOpenConta = { conta -> tela = Screen.Conta(conta) },
+            onOpen = { servidor -> tela = Screen.Browser(servidor, volta = atual) },
+            onOpenConta = { conta -> tela = Screen.Conta(conta, volta = atual) },
             cadastroInicial = atual.cadastro,
+            grupo = atual.grupo,
         )
         is Screen.Conta -> ContaScreen(
             conta = atual.conta,
-            onBack = { tela = if (atual.daBiblioteca) Screen.Library else Screen.Servers() },
+            // Volta sem o pedido de cadastro: senão o formulário reabriria.
+            onBack = { tela = (atual.volta as? Screen.Servers)?.copy(cadastro = null) ?: atual.volta },
         )
         is Screen.Browser -> SmbBrowserScreen(
             server = atual.server,
-            onBack = { tela = if (atual.daBiblioteca) Screen.Library else Screen.Servers() },
+            onBack = { tela = (atual.volta as? Screen.Servers)?.copy(cadastro = null) ?: atual.volta },
         )
     }
 }

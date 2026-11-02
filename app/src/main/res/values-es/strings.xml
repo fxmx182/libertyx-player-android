@@ -321,4 +321,36 @@
     <string name="conta_midia_explica">La contraseña solo sirve para entrar. La app guarda la clave de acceso que devuelve el servidor, cifrada en el dispositivo, y reproduce los archivos originales, sin conversión.</string>
     <string name="historico">Historial</string>
     <string name="remover_do_historico">Quitar del historial</string>
+    <string name="aba_inicio">Inicio</string>
+    <string name="aba_arquivos">Archivos</string>
+    <string name="aba_procurar">Buscar</string>
+    <string name="aba_ajustes">Ajustes</string>
+    <string name="webdav_nextcloud">WebDAV / Nextcloud</string>
+    <string name="adicionar_webdav">Añadir WebDAV</string>
+    <string name="servidores_sub">SMB, Jellyfin y Emby</string>
+    <string name="webdav_sub">Nextcloud, ownCloud y otros</string>
+    <string name="exibicao_sub">Cuadrícula o lista, y el orden</string>
+    <string name="reproducao">Reproducción</string>
+    <string name="reproducao_sub">Controles, velocidad y reanudación</string>
+    <string name="ao_reabrir">Al reabrir un video</string>
+    <string name="perguntar">Preguntar</string>
+    <string name="retomar_direto">Reanudar directamente</string>
+    <string name="fale_com_a_gente">Habla con nosotros</string>
+    <string name="compartilhar_app">Compartir LibertyX</string>
+    <string name="compartilhar_texto">LibertyX Player reproduce cualquier video, del móvil o directo del servidor de casa: %1$s</string>
+    <string name="seguir_no_x">Síguenos en X</string>
+    <string name="em_breve">Pronto</string>
+    <string name="x_em_breve">Nuestro perfil en X llega pronto.</string>
+    <string name="enviar_email">Envíanos un email</string>
+    <string name="sem_app_de_email">No hay app de correo. Escribe a %1$s</string>
+    <string name="procurar_explica">Videos del dispositivo y de los servidores Jellyfin y Emby</string>
+    <string name="procurar_dica">Película, episodio, nombre del archivo…</string>
+    <string name="procurando_nos_servidores">Buscando en los servidores…</string>
+    <string name="nada_encontrado">Nada encontrado para “%1$s”.</string>
+    <string name="limpar">Borrar</string>
+    <plurals name="n_servidores">
+        <item quantity="one">%1$d servidor</item>
+        <item quantity="other">%1$d servidores</item>
+    </plurals>
+    <string name="preferencias">Preferencias</string>
 </resources>

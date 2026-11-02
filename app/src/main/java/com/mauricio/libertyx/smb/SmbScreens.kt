@@ -91,6 +91,7 @@ import com.mauricio.libertyx.rede.ContaDeRede
 import com.mauricio.libertyx.rede.ContasDeRede
 import com.mauricio.libertyx.rede.EditorDeConta
 import com.mauricio.libertyx.rede.EscolhaDeTipoDeServidor
+import com.mauricio.libertyx.rede.GrupoDeServidores
 import com.mauricio.libertyx.rede.NovoServidor
 import com.mauricio.libertyx.rede.icone
 import com.mauricio.libertyx.core.LabTheme
@@ -113,15 +114,27 @@ fun SmbServersScreen(
     onOpenConta: (ContaDeRede) -> Unit,
     /** Abre o formulário deste tipo assim que a tela aparece. */
     cadastroInicial: NovoServidor? = null,
+    /** Qual parte dos cadastros esta tela mostra — ver [GrupoDeServidores]. */
+    grupo: GrupoDeServidores = GrupoDeServidores.TODOS,
 ) {
     val contexto = LocalContext.current
     val store = remember { SmbServerStore.get(contexto) }
-    var servidores by remember { mutableStateOf(store.servers) }
+    fun lerServidores() = if (grupo.temSmb) store.servers else emptyList()
+    var servidores by remember { mutableStateOf(lerServidores()) }
     val lojaDeContas = remember { ContasDeRede.get(contexto) }
-    var contas by remember { mutableStateOf(lojaDeContas.contas) }
+    fun lerContas() = lojaDeContas.contas.filter { grupo.mostra(it.tipo) }
+    var contas by remember { mutableStateOf(lerContas()) }
     var escolhendoTipo by remember { mutableStateOf(false) }
     // WebDAV, Jellyfin e Emby: o tipo e, ao editar, a conta.
     var editandoConta by remember { mutableStateOf<Pair<ContaDeRede.Tipo, ContaDeRede?>?>(null) }
+    // WebDAV tem um tipo só: o "+" vai direto ao formulário.
+    val adicionar = {
+        if (grupo == GrupoDeServidores.WEBDAV) {
+            editandoConta = ContaDeRede.Tipo.WEBDAV to null
+        } else {
+            escolhendoTipo = true
+        }
+    }
     var editando by remember { mutableStateOf<SmbServer?>(null) }
     // Não é um sim/não: guarda os valores já preenchidos, para um servidor
     // achado na rede chegar ao formulário com nome e endereço prontos.
@@ -134,6 +147,8 @@ fun SmbServersScreen(
     // rede é o que se quer fazer ao abrir "Servidores", e pedir um toque a
     // mais para isso seria só cerimônia.
     LaunchedEffect(Unit) {
+        // WebDAV não se anuncia na rede: nada a procurar.
+        if (!grupo.temSmb) { procurando = false; return@LaunchedEffect }
         procurando = true
         runCatching {
             // Mais folga que antes: numa rede virtual (Android de PC) a busca
@@ -173,7 +188,12 @@ fun SmbServersScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.servidores), fontWeight = FontWeight.SemiBold) },
+                title = {
+                    Text(
+                        stringResource(if (grupo == GrupoDeServidores.WEBDAV) R.string.webdav_nextcloud else R.string.servidores),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.voltar))
@@ -185,7 +205,7 @@ fun SmbServersScreen(
                     // mostra e inalcançável — pior que não existir. Lá quem
                     // adiciona é a primeira linha da lista.
                     if (!Device.isTv(contexto)) {
-                        IconButton(onClick = { escolhendoTipo = true }) {
+                        IconButton(onClick = adicionar) {
                             Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.adicionar_servidor))
                         }
                     }
@@ -219,13 +239,16 @@ fun SmbServersScreen(
                         .focusRequester(primeiroFoco)
                         .tvFocus(LabTheme.radiusCard)
                         .clip(RoundedCornerShape(LabTheme.radiusCard)).labCard()
-                        .clickable { escolhendoTipo = true }
+                        .clickable(onClick = adicionar)
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(Icons.Filled.Add, null, tint = LabTheme.accent, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(12.dp))
-                    Text(stringResource(R.string.adicionar_servidor), color = LabTheme.text, fontWeight = FontWeight.Medium)
+                    Text(
+                        stringResource(if (grupo == GrupoDeServidores.WEBDAV) R.string.adicionar_webdav else R.string.adicionar_servidor),
+                        color = LabTheme.text, fontWeight = FontWeight.Medium,
+                    )
                 }
             }
 
@@ -265,7 +288,7 @@ fun SmbServersScreen(
                     IconButton(
                         onClick = {
                             store.remove(servidor)
-                            servidores = store.servers
+                            servidores = lerServidores()
                         },
                         modifier = Modifier.tvFocus(24.dp),
                     ) {
@@ -300,7 +323,7 @@ fun SmbServersScreen(
                     IconButton(
                         onClick = {
                             lojaDeContas.remover(conta)
-                            contas = lojaDeContas.contas
+                            contas = lerContas()
                         },
                         modifier = Modifier.tvFocus(24.dp),
                     ) {
@@ -356,7 +379,7 @@ fun SmbServersScreen(
 
             // Silêncio no fim da busca parece busca quebrada. Diz o que houve —
             // inclusive quando ela achou, mas só o que já estava salvo.
-            if (!procurando && novos.isEmpty()) {
+            if (grupo.temSmb && !procurando && novos.isEmpty()) {
                 item {
                     Text(
                         if (encontrados.isNotEmpty()) stringResource(R.string.rede_so_salvos)
@@ -378,6 +401,7 @@ fun SmbServersScreen(
                 else editandoConta = tipo to null
             },
             onCancel = { escolhendoTipo = false },
+            grupo = grupo,
         )
     }
 
@@ -387,7 +411,7 @@ fun SmbServersScreen(
             conta = conta,
             onCancel = { editandoConta = null },
             onSalvo = {
-                contas = lojaDeContas.contas
+                contas = lerContas()
                 editandoConta = null
             },
         )
@@ -402,7 +426,7 @@ fun SmbServersScreen(
             onCancel = { criando = null; editando = null },
             onSave = { servidor, senha ->
                 store.save(servidor, senha)
-                servidores = store.servers
+                servidores = lerServidores()
                 criando = null
                 editando = null
             },

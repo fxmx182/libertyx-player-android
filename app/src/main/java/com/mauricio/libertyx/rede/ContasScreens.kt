@@ -138,18 +138,44 @@ sealed interface AtalhoDeServidor {
 /**
  * Qual servidor cadastrar. `null` é o SMB, que tem formulário próprio.
  */
+/**
+ * Como os Ajustes separam os cadastros: os servidores de casa (SMB, Jellyfin,
+ * Emby) de um lado, o WebDAV do outro. A TV continua vendo tudo numa lista só.
+ */
+enum class GrupoDeServidores {
+    TODOS, SERVIDORES, WEBDAV;
+
+    fun mostra(tipo: ContaDeRede.Tipo): Boolean = when (this) {
+        TODOS -> true
+        SERVIDORES -> tipo != ContaDeRede.Tipo.WEBDAV
+        WEBDAV -> tipo == ContaDeRede.Tipo.WEBDAV
+    }
+
+    val temSmb: Boolean get() = this != WEBDAV
+}
+
 @Composable
-fun EscolhaDeTipoDeServidor(onEscolher: (ContaDeRede.Tipo?) -> Unit, onCancel: () -> Unit) {
+fun EscolhaDeTipoDeServidor(
+    onEscolher: (ContaDeRede.Tipo?) -> Unit,
+    onCancel: () -> Unit,
+    grupo: GrupoDeServidores = GrupoDeServidores.TODOS,
+) {
     AlertDialog(
         onDismissRequest = onCancel,
         containerColor = LabTheme.surface,
         title = { Text(stringResource(R.string.tipo_de_servidor)) },
         text = {
             Column {
-                OpcaoDeTipo(Icons.Filled.Dns, stringResource(R.string.tipo_smb)) { onEscolher(null) }
-                OpcaoDeTipo(Icons.Filled.Cloud, stringResource(R.string.tipo_webdav)) { onEscolher(ContaDeRede.Tipo.WEBDAV) }
-                OpcaoDeTipo(Icons.Filled.VideoLibrary, "Jellyfin") { onEscolher(ContaDeRede.Tipo.JELLYFIN) }
-                OpcaoDeTipo(Icons.Filled.Tv, "Emby") { onEscolher(ContaDeRede.Tipo.EMBY) }
+                if (grupo.temSmb) {
+                    OpcaoDeTipo(Icons.Filled.Dns, stringResource(R.string.tipo_smb)) { onEscolher(null) }
+                }
+                if (grupo.mostra(ContaDeRede.Tipo.WEBDAV)) {
+                    OpcaoDeTipo(Icons.Filled.Cloud, stringResource(R.string.tipo_webdav)) { onEscolher(ContaDeRede.Tipo.WEBDAV) }
+                }
+                if (grupo.mostra(ContaDeRede.Tipo.JELLYFIN)) {
+                    OpcaoDeTipo(Icons.Filled.VideoLibrary, "Jellyfin") { onEscolher(ContaDeRede.Tipo.JELLYFIN) }
+                    OpcaoDeTipo(Icons.Filled.Tv, "Emby") { onEscolher(ContaDeRede.Tipo.EMBY) }
+                }
             }
         },
         confirmButton = {},
