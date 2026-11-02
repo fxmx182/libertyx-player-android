@@ -137,7 +137,7 @@ private fun App() {
         // com dock para o dedo, faixas para o controle remoto.
         is Screen.Library -> if (naTv) {
             ComPermissao(bloqueia = false) {
-                TvHomeScreen(onOpenServers = { abrirServidores(GrupoDeServidores.TODOS) })
+                TvHomeScreen(onOpenServers = { abrirServidores(GrupoDeServidores.TODOS) }, onAtalho = abrirAtalho)
             }
         } else {
             // Voltar numa aba que não é a primeira leva ao Início, e só de lá

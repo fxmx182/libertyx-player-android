@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -55,8 +54,9 @@ import com.mauricio.libertyx.core.resumeKey
 import com.mauricio.libertyx.library.MediaLibrary
 import com.mauricio.libertyx.library.Thumbnails
 import com.mauricio.libertyx.player.Playback
-import com.mauricio.libertyx.smb.SmbServer
-import com.mauricio.libertyx.smb.SmbServerStore
+import com.mauricio.libertyx.core.Historico
+import com.mauricio.libertyx.library.rememberVoltaAoApp
+import com.mauricio.libertyx.rede.AtalhoDeServidor
 import com.mauricio.libertyx.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.material.icons.filled.Info
@@ -84,9 +84,14 @@ import androidx.compose.ui.res.painterResource
  *    imagem; texto encostado na borda simplesmente não aparece.
  */
 @Composable
-fun TvHomeScreen(onOpenServers: () -> Unit) {
+fun TvHomeScreen(onOpenServers: () -> Unit, onAtalho: (AtalhoDeServidor) -> Unit) {
     val contexto = LocalContext.current
-    val servidores = remember { SmbServerStore.get(contexto).servers }
+    // Relidos a cada volta: de um vídeo (o histórico muda) ou do cadastro
+    // de servidores (um novo aparece aqui na hora).
+    val volta = rememberVoltaAoApp()
+    val atalhos = remember(volta) { AtalhoDeServidor.todos(contexto) }
+    val versaoDoHistorico = Historico.versao.intValue
+    val historico = remember(versaoDoHistorico, volta) { Historico.get(contexto).itens.take(20) }
     val primeiroFoco = remember { FocusRequester() }
 
     val grupos by produceState<List<VideoGroup>?>(initialValue = null) {
@@ -104,15 +109,36 @@ fun TvHomeScreen(onOpenServers: () -> Unit) {
     ) {
         item { Cabecalho() }
 
-        item {
+        // O que foi visto por último, de qualquer origem — o mesmo histórico
+        // do celular. Vem primeiro: é o que se quer ao ligar a TV de novo.
+        if (historico.isNotEmpty()) {
+            item(key = "historico") {
+                Faixa(stringResource(R.string.historico)) {
+                    items(historico, key = { it.origin.resumeKey }) { item ->
+                        CartaoVideo(
+                            item = item,
+                            modifier = if (item === historico.first()) Modifier.focusRequester(primeiroFoco) else Modifier,
+                            volta = volta,
+                        ) { Playback.start(contexto, item, historico) }
+                    }
+                }
+            }
+        }
+
+        // Todos os servidores salvos, e não só os SMB: cada um abre direto no
+        // servidor, como no celular. Cadastrar e editar ficam no último cartão.
+        item(key = "servidores") {
             Faixa(stringResource(R.string.servidores)) {
-                items(servidores, key = { it.id }) { servidor ->
-                    CartaoServidor(servidor, Modifier) { onOpenServers() }
+                items(atalhos, key = { it.chave }) { atalho ->
+                    CartaoServidor(
+                        atalho,
+                        if (historico.isEmpty() && atalho === atalhos.first()) Modifier.focusRequester(primeiroFoco) else Modifier,
+                    ) { onAtalho(atalho) }
                 }
                 item {
                     CartaoAcao(
-                        titulo = stringResource(if (servidores.isEmpty()) R.string.conectar_servidor else R.string.gerenciar_servidores),
-                        modifier = if (servidores.isEmpty()) Modifier.focusRequester(primeiroFoco) else Modifier,
+                        titulo = stringResource(if (atalhos.isEmpty()) R.string.conectar_servidor else R.string.gerenciar_servidores),
+                        modifier = if (historico.isEmpty() && atalhos.isEmpty()) Modifier.focusRequester(primeiroFoco) else Modifier,
                         onClick = onOpenServers,
                     )
                 }
@@ -125,11 +151,7 @@ fun TvHomeScreen(onOpenServers: () -> Unit) {
                 Faixa(grupo.name.uppercase()) {
                     val ordenados = grupo.items
                     items(ordenados, key = { it.id }) { item ->
-                        CartaoVideo(
-                            item = item,
-                            modifier = if (item.id == ordenados.first().id && servidores.isNotEmpty())
-                                Modifier.focusRequester(primeiroFoco) else Modifier,
-                        ) { Playback.start(contexto, item, ordenados) }
+                        CartaoVideo(item = item, volta = volta) { Playback.start(contexto, item, ordenados) }
                     }
                 }
             }
@@ -234,6 +256,7 @@ private fun CartaoVideo(
     modifier: Modifier = Modifier,
     capa: Int? = null,
     legenda: String? = null,
+    volta: Int = 0,
     onClick: () -> Unit,
 ) {
     val contexto = LocalContext.current
@@ -296,7 +319,7 @@ private fun CartaoVideo(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        val retomada = remember(item.id) {
+        val retomada = remember(item.id, volta) {
             ResumeStore.get(contexto).position(item.origin.resumeKey)
         }
         Text(
@@ -309,7 +332,7 @@ private fun CartaoVideo(
 }
 
 @Composable
-private fun CartaoServidor(servidor: SmbServer, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun CartaoServidor(atalho: AtalhoDeServidor, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Column(modifier.width(CARD_W)) {
         Box(
             Modifier
@@ -320,11 +343,15 @@ private fun CartaoServidor(servidor: SmbServer, modifier: Modifier = Modifier, o
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Filled.Dns, null, tint = LabTheme.accent, modifier = Modifier.size(38.dp))
+            Icon(atalho.icone, null, tint = LabTheme.accent, modifier = Modifier.size(38.dp))
         }
         Spacer(Modifier.height(9.dp))
-        Text(servidor.name, color = LabTheme.text, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(servidor.displayHost, color = LabTheme.muted, fontSize = 12.sp, maxLines = 1)
+        Text(atalho.nome, color = LabTheme.text, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        val detalhe = when (atalho) {
+            is AtalhoDeServidor.Smb -> atalho.servidor.displayHost
+            is AtalhoDeServidor.Conta -> atalho.tipo
+        }
+        Text(detalhe, color = LabTheme.muted, fontSize = 12.sp, maxLines = 1)
     }
 }
 
