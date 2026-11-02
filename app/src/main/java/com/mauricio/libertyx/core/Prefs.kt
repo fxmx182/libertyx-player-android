@@ -100,7 +100,9 @@ class PlayerPreferences(context: Context) {
 class ResumeStore private constructor(context: Context) {
 
     private val prefs = Prefs.get(context)
-    private val marcas = HashMap<String, Marca>()
+    // Lida pela tela a todo momento e escrita também de fora dela, quando a
+    // lista de um servidor chega ([mesclar]); quem escreve passa pelo lock.
+    private val marcas = java.util.concurrent.ConcurrentHashMap<String, Marca>()
 
     private data class Marca(val position: Double, val duration: Double, val updatedAt: Long)
 
@@ -149,32 +151,42 @@ class ResumeStore private constructor(context: Context) {
             .sortedByDescending { it.value.updatedAt }
             .map { it.key }
 
+    @Synchronized
     fun save(position: Double, duration: Double, key: String) {
         if (!position.isFinite() || position <= 0) return
         marcas[key] = Marca(position, duration, System.currentTimeMillis())
         persist()
     }
 
+    /** Onde o servidor diz que um vídeo parou, para [mesclar]. */
+    class DoServidor(val key: String, val position: Double?, val duration: Double, val at: Long, val watched: Boolean)
+
     /**
-     * O que o servidor diz de um vídeo visto em outro aparelho.
+     * O que o servidor diz dos vídeos vistos em outro aparelho.
      *
      * Vale a marca mais recente: a daqui só dá lugar à de lá quando a de lá é
-     * mais nova. Visto até o fim, ou recomeçado lá, apaga a daqui.
+     * mais nova. Visto até o fim, ou recomeçado lá, apaga a daqui. A lista
+     * inteira grava uma vez só: uma biblioteca grande gravaria centenas.
      */
     @Synchronized
-    fun mesclar(key: String, position: Double?, duration: Double, at: Long, watched: Boolean) {
-        val local = marcas[key]
-        if (local != null && local.updatedAt >= at) return
-        if (watched || position == null || position <= 0) {
-            if (local != null) clear(key)
-            return
+    fun mesclar(entradas: List<DoServidor>) {
+        var mudou = false
+        for (e in entradas) {
+            val local = marcas[e.key]
+            if (local != null && local.updatedAt >= e.at) continue
+            if (e.watched || e.position == null || e.position <= 0) {
+                if (marcas.remove(e.key) != null) mudou = true
+                continue
+            }
+            if (local?.position == e.position) continue
+            marcas[e.key] = Marca(e.position, e.duration, e.at)
+            mudou = true
         }
-        if (local?.position == position) return
-        marcas[key] = Marca(position, duration, at)
-        persist()
+        if (mudou) persist()
     }
 
     /** Ao terminar: quem assistiu até o fim não quer voltar para os créditos. */
+    @Synchronized
     fun clear(key: String) {
         if (marcas.remove(key) != null) persist()
     }

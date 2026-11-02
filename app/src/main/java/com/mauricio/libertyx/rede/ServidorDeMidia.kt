@@ -228,13 +228,19 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
         corpo: JSONObject? = null,
     ): JSONObject {
         val texto = pedirTexto(caminho, consulta, corpo)
-        return runCatching { JSONObject(texto) }.getOrElse { throw naoEhServidor() }
+        // A biblioteca inteira pode ter megabytes: lida na thread da tela,
+        // travaria a rolagem e o foco da TV enquanto chega.
+        return withContext(Dispatchers.Default) {
+            runCatching { JSONObject(texto) }.getOrElse { throw naoEhServidor() }
+        }
     }
 
     /** O `Latest` responde com a lista solta, sem o `Items` em volta. */
     private suspend fun pedirLista(caminho: String, consulta: List<Pair<String, String>>): JSONArray {
         val texto = pedirTexto(caminho, consulta, null)
-        return runCatching { JSONArray(texto) }.getOrElse { throw naoEhServidor() }
+        return withContext(Dispatchers.Default) {
+            runCatching { JSONArray(texto) }.getOrElse { throw naoEhServidor() }
+        }
     }
 
     /** Um aviso: o servidor responde sem corpo (204), e não há o que ler. */
@@ -264,9 +270,9 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
         }
     }
 
-    private fun lista(json: JSONObject): List<Item> = lista(json.optJSONArray("Items") ?: JSONArray())
+    private suspend fun lista(json: JSONObject): List<Item> = lista(json.optJSONArray("Items") ?: JSONArray())
 
-    private fun lista(itens: JSONArray): List<Item> {
+    private suspend fun lista(itens: JSONArray): List<Item> = withContext(Dispatchers.Default) {
         val lidos = (0 until itens.length()).map { i ->
             val o = itens.getJSONObject(i)
             val usuario = o.optJSONObject("UserData")
@@ -291,7 +297,7 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
             )
         }
         lembrarOndeParou(lidos)
-        return lidos
+        lidos
     }
 
     /**
@@ -300,13 +306,13 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
      * em…" do player valer para o que foi visto na TV ou no navegador.
      */
     private fun lembrarOndeParou(itens: List<Item>) {
-        val marcas = ResumeStore.get(Textos.app)
-        for (item in itens) {
-            if (!item.ehVideo) continue
-            val quando = item.ultimaVez ?: continue
+        val doServidor = itens.mapNotNull { item ->
+            val quando = item.ultimaVez ?: return@mapNotNull null
+            if (!item.ehVideo) return@mapNotNull null
             val chave = MediaOrigin.Midia(conta.id, item.id).resumeKey
-            marcas.mesclar(chave, item.posicao, item.duracao ?: 0.0, quando, item.visto)
+            ResumeStore.DoServidor(chave, item.posicao, item.duracao ?: 0.0, quando, item.visto)
         }
+        if (doServidor.isNotEmpty()) ResumeStore.get(Textos.app).mesclar(doServidor)
     }
 
     private fun data(texto: String): Long? = texto.takeIf { it.length >= 19 }

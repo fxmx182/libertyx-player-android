@@ -191,12 +191,26 @@ android {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
         }
+        // Para testar no aparelho antes de publicar: `./gradlew assembleTvPrevia`.
+        //
+        // O debug não serve para julgar se o app está leve. Depurável, o Android
+        // não compila o código antecipadamente e o Compose roda sem as
+        // otimizações — numa TV fraca, rolar e mudar o foco engasgam como o
+        // release nunca engasga. Este é o release, com o pacote e a chave do
+        // debug: instala por cima da versão de teste, sem tocar na de verdade.
+        create("previa") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-previa"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "release"
+        }
     }
 
     // A compra pela Play mora em `src/play` e entra em todo tipo de build menos o da Amazon,
     // que traz a sua em `src/amazon` (pasta do próprio tipo, o Gradle a acha sozinho).
     sourceSets {
-        listOf("debug", "release", "loja").forEach { getByName(it).java.srcDir("src/play/java") }
+        listOf("debug", "release", "loja", "previa").forEach { getByName(it).java.srcDir("src/play/java") }
     }
 
     // O celular recebe um APK por arquitetura; a TV recebe o universal.
@@ -413,6 +427,7 @@ dependencies {
     "debugImplementation"(libs.billing)
     "releaseImplementation"(libs.billing)
     "lojaImplementation"(libs.billing)
+    "previaImplementation"(libs.billing)
     // Na Fire TV, a compra é pela Amazon — e a biblioteca da Play nem entra no APK.
     "amazonImplementation"(libs.amazon.appstore)
 
