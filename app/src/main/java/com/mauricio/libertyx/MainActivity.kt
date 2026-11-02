@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +45,7 @@ import com.mauricio.libertyx.library.Aba
 import com.mauricio.libertyx.library.AjustesScreen
 import com.mauricio.libertyx.library.ArquivosScreen
 import com.mauricio.libertyx.library.Dock
+import com.mauricio.libertyx.library.LocalDock
 import com.mauricio.libertyx.library.ProcurarScreen
 import com.mauricio.libertyx.rede.GrupoDeServidores
 import com.mauricio.libertyx.tv.TvHomeScreen
@@ -132,59 +134,70 @@ private fun App() {
         }
     }
 
-    when (val atual = tela) {
-        // A mesma origem de dados nos dois casos; o que muda é a tela — abas
-        // com dock para o dedo, faixas para o controle remoto.
-        is Screen.Library -> if (naTv) {
-            ComPermissao(bloqueia = false) {
-                TvHomeScreen(onOpenServers = { abrirServidores(GrupoDeServidores.TODOS) }, onAtalho = abrirAtalho)
-            }
-        } else {
-            // Voltar numa aba que não é a primeira leva ao Início, e só de lá
-            // o app fecha — como em todo app de abas do Android.
-            BackHandler(enabled = aba != Aba.INICIO) { aba = Aba.INICIO }
-            Box(Modifier.fillMaxSize()) {
-                when (aba) {
-                    // Sem a permissão só as abas de vídeo do aparelho trancam:
-                    // os Ajustes e a busca nos servidores seguem à mão.
-                    Aba.INICIO -> ComPermissao {
-                        LibraryScreen(
-                            onOpenServers = { abrirServidores(GrupoDeServidores.SERVIDORES) },
-                            onAtalho = abrirAtalho,
+    // A dock fica por cima de todas as telas, como no iPhone: dentro de um
+    // servidor ou de uma pasta da rede, as quatro abas seguem a um toque.
+    // Tocar numa aba fecha a tela da rede e leva à raiz dela.
+    Box(Modifier.fillMaxSize()) {
+        CompositionLocalProvider(LocalDock provides !naTv) {
+            when (val atual = tela) {
+                // A mesma origem de dados nos dois casos; o que muda é a tela — abas
+                // com dock para o dedo, faixas para o controle remoto.
+                is Screen.Library -> if (naTv) {
+                    ComPermissao(bloqueia = false) {
+                        TvHomeScreen(onOpenServers = { abrirServidores(GrupoDeServidores.TODOS) }, onAtalho = abrirAtalho)
+                    }
+                } else {
+                    // Voltar numa aba que não é a primeira leva ao Início, e só de lá
+                    // o app fecha — como em todo app de abas do Android.
+                    BackHandler(enabled = aba != Aba.INICIO) { aba = Aba.INICIO }
+                    when (aba) {
+                        // Sem a permissão só as abas de vídeo do aparelho trancam:
+                        // os Ajustes e a busca nos servidores seguem à mão.
+                        Aba.INICIO -> ComPermissao {
+                            LibraryScreen(
+                                onOpenServers = { abrirServidores(GrupoDeServidores.SERVIDORES) },
+                                onAtalho = abrirAtalho,
+                            )
+                        }
+                        Aba.ARQUIVOS -> ComPermissao {
+                            ArquivosScreen(
+                                onAtalho = abrirAtalho,
+                                onAdicionarServidor = { aba = Aba.AJUSTES },
+                            )
+                        }
+                        Aba.PROCURAR -> ProcurarScreen()
+                        Aba.AJUSTES -> AjustesScreen(
+                            onServidores = { abrirServidores(GrupoDeServidores.SERVIDORES) },
+                            onWebDav = { abrirServidores(GrupoDeServidores.WEBDAV) },
+                            onGuia = { mostrandoGuia = true },
                         )
                     }
-                    Aba.ARQUIVOS -> ComPermissao {
-                        ArquivosScreen(
-                            onAtalho = abrirAtalho,
-                            onAdicionarServidor = { aba = Aba.AJUSTES },
-                        )
-                    }
-                    Aba.PROCURAR -> ProcurarScreen()
-                    Aba.AJUSTES -> AjustesScreen(
-                        onServidores = { abrirServidores(GrupoDeServidores.SERVIDORES) },
-                        onWebDav = { abrirServidores(GrupoDeServidores.WEBDAV) },
-                        onGuia = { mostrandoGuia = true },
-                    )
                 }
-                Dock(aba, onAba = { aba = it }, modifier = Modifier.align(Alignment.BottomCenter))
+                is Screen.Servers -> SmbServersScreen(
+                    onBack = { tela = Screen.Library },
+                    onOpen = { servidor -> tela = Screen.Browser(servidor, volta = atual) },
+                    onOpenConta = { conta -> tela = Screen.Conta(conta, volta = atual) },
+                    cadastroInicial = atual.cadastro,
+                    grupo = atual.grupo,
+                )
+                is Screen.Conta -> ContaScreen(
+                    conta = atual.conta,
+                    // Volta sem o pedido de cadastro: senão o formulário reabriria.
+                    onBack = { tela = (atual.volta as? Screen.Servers)?.copy(cadastro = null) ?: atual.volta },
+                )
+                is Screen.Browser -> SmbBrowserScreen(
+                    server = atual.server,
+                    onBack = { tela = (atual.volta as? Screen.Servers)?.copy(cadastro = null) ?: atual.volta },
+                )
             }
         }
-        is Screen.Servers -> SmbServersScreen(
-            onBack = { tela = Screen.Library },
-            onOpen = { servidor -> tela = Screen.Browser(servidor, volta = atual) },
-            onOpenConta = { conta -> tela = Screen.Conta(conta, volta = atual) },
-            cadastroInicial = atual.cadastro,
-            grupo = atual.grupo,
-        )
-        is Screen.Conta -> ContaScreen(
-            conta = atual.conta,
-            // Volta sem o pedido de cadastro: senão o formulário reabriria.
-            onBack = { tela = (atual.volta as? Screen.Servers)?.copy(cadastro = null) ?: atual.volta },
-        )
-        is Screen.Browser -> SmbBrowserScreen(
-            server = atual.server,
-            onBack = { tela = (atual.volta as? Screen.Servers)?.copy(cadastro = null) ?: atual.volta },
-        )
+        if (!naTv) {
+            Dock(
+                aba,
+                onAba = { aba = it; tela = Screen.Library },
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
     }
 }
 

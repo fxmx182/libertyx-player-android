@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,8 +28,10 @@ import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,6 +52,20 @@ enum class Aba(@StringRes val rotulo: Int, val icone: ImageVector, val iconeAtiv
     PROCURAR(R.string.aba_procurar, Icons.Outlined.Search, Icons.Filled.Search),
     AJUSTES(R.string.aba_ajustes, Icons.Outlined.Settings, Icons.Filled.Settings),
 }
+
+/** Se a dock está por cima desta tela: no celular, sim; na TV não há dock. */
+val LocalDock = staticCompositionLocalOf { false }
+
+/**
+ * As margens de um Scaffold que fica sob a dock.
+ *
+ * A lista termina logo acima dela: sem isso, a última pasta ou o último
+ * servidor ficaria escondido atrás da pílula, sem como tocar.
+ */
+@Composable
+fun margensSobADock(): WindowInsets =
+    if (LocalDock.current) ScaffoldDefaults.contentWindowInsets.add(WindowInsets(bottom = 84.dp))
+    else ScaffoldDefaults.contentWindowInsets
 
 /**
  * A dock: uma pílula flutuando sobre o fim da tela, com as quatro abas.

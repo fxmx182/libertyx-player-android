@@ -58,6 +58,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import com.mauricio.libertyx.library.margensSobADock
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -186,6 +187,7 @@ fun SmbServersScreen(
     FundoDeCapa(null)
     Scaffold(
         containerColor = Color.Transparent,
+        contentWindowInsets = margensSobADock(),
         topBar = {
             TopAppBar(
                 title = {
@@ -614,6 +616,7 @@ fun SmbBrowserScreen(server: SmbServer, onBack: () -> Unit) {
     FundoDeCapa(null)
     Scaffold(
         containerColor = Color.Transparent,
+        contentWindowInsets = margensSobADock(),
         topBar = {
             TopAppBar(
                 title = {
