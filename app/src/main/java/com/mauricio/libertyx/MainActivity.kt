@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Box
+import com.mauricio.libertyx.tv.AbasDaTv
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -140,37 +143,27 @@ private fun App() {
     Box(Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalDock provides !naTv) {
             when (val atual = tela) {
-                // A mesma origem de dados nos dois casos; o que muda é a tela — abas
-                // com dock para o dedo, faixas para o controle remoto.
-                is Screen.Library -> if (naTv) {
-                    ComPermissao(bloqueia = false) {
-                        TvHomeScreen(onOpenServers = { abrirServidores(GrupoDeServidores.TODOS) }, onAtalho = abrirAtalho)
-                    }
-                } else {
+                // As mesmas quatro abas nos dois: na dock, para o dedo, e numa
+                // fileira no alto da TV, para o controle remoto.
+                is Screen.Library -> {
                     // Voltar numa aba que não é a primeira leva ao Início, e só de lá
                     // o app fecha — como em todo app de abas do Android.
                     BackHandler(enabled = aba != Aba.INICIO) { aba = Aba.INICIO }
-                    when (aba) {
-                        // Sem a permissão só as abas de vídeo do aparelho trancam:
-                        // os Ajustes e a busca nos servidores seguem à mão.
-                        Aba.INICIO -> ComPermissao {
-                            LibraryScreen(
-                                onOpenServers = { abrirServidores(GrupoDeServidores.SERVIDORES) },
-                                onAtalho = abrirAtalho,
-                            )
-                        }
-                        Aba.ARQUIVOS -> ComPermissao {
-                            ArquivosScreen(
-                                onAtalho = abrirAtalho,
-                                onAdicionarServidor = { aba = Aba.AJUSTES },
-                            )
-                        }
-                        Aba.PROCURAR -> ProcurarScreen()
-                        Aba.AJUSTES -> AjustesScreen(
-                            onServidores = { abrirServidores(GrupoDeServidores.SERVIDORES) },
-                            onWebDav = { abrirServidores(GrupoDeServidores.WEBDAV) },
-                            onGuia = { mostrandoGuia = true },
+                    val conteudo = @Composable {
+                        TelaDaAba(
+                            aba, naTv, onAba = { aba = it },
+                            abrirServidores = abrirServidores, abrirAtalho = abrirAtalho,
+                            // Na TV não há guia: o controle remoto já é o guia.
+                            onGuia = if (naTv) null else ({ mostrandoGuia = true }),
                         )
+                    }
+                    if (naTv) {
+                        Column(Modifier.fillMaxSize().background(LabTheme.background)) {
+                            AbasDaTv(aba, onAba = { aba = it })
+                            Box(Modifier.weight(1f).fillMaxWidth()) { conteudo() }
+                        }
+                    } else {
+                        conteudo()
                     }
                 }
                 is Screen.Servers -> SmbServersScreen(
@@ -198,6 +191,47 @@ private fun App() {
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
+    }
+}
+
+/**
+ * A tela de cada aba, a mesma no celular e na TV — menos o Início, que na TV
+ * é de faixas, para o controle remoto.
+ */
+@Composable
+private fun TelaDaAba(
+    aba: Aba,
+    naTv: Boolean,
+    onAba: (Aba) -> Unit,
+    abrirServidores: (GrupoDeServidores) -> Unit,
+    abrirAtalho: (AtalhoDeServidor) -> Unit,
+    onGuia: (() -> Unit)?,
+) {
+    when (aba) {
+        // Sem a permissão só as abas de vídeo do aparelho trancam:
+        // os Ajustes e a busca nos servidores seguem à mão. Na TV nem elas,
+        // porque lá o acervo mora no servidor.
+        Aba.INICIO -> if (naTv) {
+            ComPermissao(bloqueia = false) {
+                TvHomeScreen(onOpenServers = { abrirServidores(GrupoDeServidores.TODOS) }, onAtalho = abrirAtalho)
+            }
+        } else {
+            ComPermissao {
+                LibraryScreen(
+                    onOpenServers = { abrirServidores(GrupoDeServidores.SERVIDORES) },
+                    onAtalho = abrirAtalho,
+                )
+            }
+        }
+        Aba.ARQUIVOS -> ComPermissao(bloqueia = !naTv) {
+            ArquivosScreen(onAtalho = abrirAtalho, onAdicionarServidor = { onAba(Aba.AJUSTES) })
+        }
+        Aba.PROCURAR -> ProcurarScreen()
+        Aba.AJUSTES -> AjustesScreen(
+            onServidores = { abrirServidores(GrupoDeServidores.SERVIDORES) },
+            onWebDav = { abrirServidores(GrupoDeServidores.WEBDAV) },
+            onGuia = onGuia,
+        )
     }
 }
 

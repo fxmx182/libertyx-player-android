@@ -20,9 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -55,7 +53,6 @@ import com.mauricio.libertyx.tv.tvFocus
  * o caminho de quem sabe onde o vídeo está: uma lista enxuta das pastas do
  * aparelho e, abaixo, cada servidor salvo.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArquivosScreen(onAtalho: (AtalhoDeServidor) -> Unit, onAdicionarServidor: () -> Unit) {
     val contexto = LocalContext.current
@@ -115,10 +112,7 @@ fun ArquivosScreen(onAtalho: (AtalhoDeServidor) -> Unit, onAdicionarServidor: ()
     }
 
     if (mostrandoOpcoes) {
-        ModalBottomSheet(
-            onDismissRequest = { mostrandoOpcoes = false; opcoes.save() },
-            containerColor = LabTheme.surface,
-        ) { OpcoesDaBiblioteca(opcoes) }
+        FolhaDeOpcoes(onFechar = { mostrandoOpcoes = false; opcoes.save() }) { OpcoesDaBiblioteca(opcoes) }
     }
 }
 

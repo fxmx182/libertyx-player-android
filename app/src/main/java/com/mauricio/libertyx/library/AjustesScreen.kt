@@ -34,10 +34,8 @@ import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.WorkspacePremium
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -78,9 +76,8 @@ private const val EMAIL = "libertyx.suporte@gmail.com"
  * Cada linha leva a um lugar; nada se muda aqui mesmo. Uma lista que só
  * aponta é a que se lê de relance.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AjustesScreen(onServidores: () -> Unit, onWebDav: () -> Unit, onGuia: () -> Unit) {
+fun AjustesScreen(onServidores: () -> Unit, onWebDav: () -> Unit, onGuia: (() -> Unit)?) {
     val contexto = LocalContext.current
     var folha by remember { mutableStateOf<Folha?>(null) }
     val estadoPro by Pro.estado.collectAsState()
@@ -120,7 +117,7 @@ fun AjustesScreen(onServidores: () -> Unit, onWebDav: () -> Unit, onGuia: () -> 
                     Linha(Icons.Outlined.WorkspacePremium, stringResource(R.string.pro_menu), valorPro) {
                         ProActivity.abrir(contexto)
                     }
-                    Linha(Icons.Outlined.HelpOutline, stringResource(R.string.ver_guia), onClick = onGuia)
+                    if (onGuia != null) Linha(Icons.Outlined.HelpOutline, stringResource(R.string.ver_guia), onClick = onGuia)
                     Linha(Icons.Outlined.Description, stringResource(R.string.licencas), ultima = true) {
                         ProActivity.abrir(contexto, licencas = true)
                     }
@@ -157,15 +154,9 @@ fun AjustesScreen(onServidores: () -> Unit, onWebDav: () -> Unit, onGuia: () -> 
     when (folha) {
         Folha.EXIBICAO -> {
             val opcoes = remember { LibraryOptions(contexto) }
-            ModalBottomSheet(
-                onDismissRequest = { folha = null; opcoes.save() },
-                containerColor = LabTheme.surface,
-            ) { OpcoesDaBiblioteca(opcoes) }
+            FolhaDeOpcoes(onFechar = { folha = null; opcoes.save() }) { OpcoesDaBiblioteca(opcoes) }
         }
-        Folha.REPRODUCAO -> ModalBottomSheet(
-            onDismissRequest = { folha = null },
-            containerColor = LabTheme.surface,
-        ) { OpcoesDeReproducao() }
+        Folha.REPRODUCAO -> FolhaDeOpcoes(onFechar = { folha = null }) { OpcoesDeReproducao() }
         null -> Unit
     }
 }
@@ -291,7 +282,13 @@ private fun compartilhar(contexto: Context) {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, contexto.getString(R.string.compartilhar_texto, SITE))
     }
-    contexto.startActivity(Intent.createChooser(envio, contexto.getString(R.string.compartilhar_app)))
+    // Muita TV não tem app nenhum para receber o texto; lá o link aparece
+    // na tela, para a pessoa anotar.
+    try {
+        contexto.startActivity(Intent.createChooser(envio, contexto.getString(R.string.compartilhar_app)))
+    } catch (_: ActivityNotFoundException) {
+        Toast.makeText(contexto, SITE, Toast.LENGTH_LONG).show()
+    }
 }
 
 private fun enviarEmail(contexto: Context) {

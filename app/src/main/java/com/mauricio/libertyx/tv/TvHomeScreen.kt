@@ -59,12 +59,6 @@ import com.mauricio.libertyx.library.rememberVoltaAoApp
 import com.mauricio.libertyx.rede.AtalhoDeServidor
 import com.mauricio.libertyx.R
 import androidx.compose.ui.res.stringResource
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.WorkspacePremium
-import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.runtime.collectAsState
-import com.mauricio.libertyx.pro.ProActivity
-import com.mauricio.libertyx.core.Pro
 import com.mauricio.libertyx.core.Demonstracao
 import androidx.compose.ui.res.painterResource
 
@@ -104,11 +98,9 @@ fun TvHomeScreen(onOpenServers: () -> Unit, onAtalho: (AtalhoDeServidor) -> Unit
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(LabTheme.background),
-        contentPadding = PaddingValues(vertical = OVERSCAN_V),
+        contentPadding = PaddingValues(top = 12.dp, bottom = OVERSCAN_V),
         verticalArrangement = Arrangement.spacedBy(34.dp),
     ) {
-        item { Cabecalho() }
-
         // O que foi visto por último, de qualquer origem — o mesmo histórico
         // do celular. Vem primeiro: é o que se quer ao ligar a TV de novo.
         if (historico.isNotEmpty()) {
@@ -171,58 +163,11 @@ fun TvHomeScreen(onOpenServers: () -> Unit, onAtalho: (AtalhoDeServidor) -> Unit
             }
         }
 
-        // No fim, onde o controle chega por último: na TV não há folha de
-        // opções, e sem esta fileira quem comprou não teria como ver o Pro
-        // nem as licenças.
-        item {
-            val estadoPro by Pro.estado.collectAsState()
-            Faixa(stringResource(R.string.pro_menu)) {
-                item {
-                    CartaoAcao(
-                        titulo = when (val e = estadoPro) {
-                            is Pro.Estado.Comprado -> stringResource(R.string.pro_ativo)
-                            is Pro.Estado.Teste -> pluralStringResource(R.plurals.pro_teste_restam, e.diasRestantes, e.diasRestantes)
-                            Pro.Estado.Expirado -> stringResource(R.string.pro_menu)
-                        },
-                        icone = Icons.Filled.WorkspacePremium,
-                    ) { ProActivity.abrir(contexto) }
-                }
-                item {
-                    CartaoAcao(stringResource(R.string.licencas), icone = Icons.Filled.Info) {
-                        ProActivity.abrir(contexto, licencas = true)
-                    }
-                }
-            }
-        }
     }
 }
 
 private val OVERSCAN_H = 48.dp
 private val OVERSCAN_V = 27.dp
-
-@Composable
-private fun Cabecalho() {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = OVERSCAN_H, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            "LIBERTYX",
-            color = LabTheme.accent,
-            fontSize = 30.sp,
-            fontWeight = FontWeight.Black,
-            letterSpacing = 3.sp,
-        )
-        Spacer(Modifier.width(12.dp))
-        Text(
-            "PLAYER",
-            color = LabTheme.faint,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Medium,
-            letterSpacing = 5.sp,
-        )
-    }
-}
 
 /** Uma faixa: título à esquerda e os cartões correndo para a direita. */
 @Composable

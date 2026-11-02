@@ -1,5 +1,8 @@
 package com.mauricio.libertyx.library
 
+import com.mauricio.libertyx.core.Device
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.material3.DropdownMenu
@@ -313,6 +316,9 @@ internal fun resumoDa(grupo: VideoGroup): String {
 /** Margens de fora a fora: a área segura do aparelho mais o respiro da tela. */
 @Composable
 internal fun margens(): PaddingValues {
+    // Na TV: a margem de segurança das bordas, que muita TV ainda corta, e
+    // nada embaixo — lá não há dock por cima da lista.
+    if (Device.isTv(LocalContext.current)) return PaddingValues(start = 48.dp, end = 48.dp, top = 8.dp, bottom = 27.dp)
     val seguro = WindowInsets.safeDrawing.asPaddingValues()
     val direcao = LocalLayoutDirection.current
     return PaddingValues(
@@ -378,6 +384,8 @@ private fun Estante(
  */
 @Composable
 internal fun BarraDoTopo(onVoltar: (() -> Unit)?, onOpcoes: (() -> Unit)?) {
+    // Na raiz de uma aba da TV a marca já está na fileira das abas, logo acima.
+    if (onVoltar == null && onOpcoes == null && Device.isTv(LocalContext.current)) return
     Row(
         Modifier.fillMaxWidth().height(52.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -959,6 +967,25 @@ internal fun OpcoesDaBiblioteca(opcoes: LibraryOptions) {
         }
 
         // Ajuda, Pro, licenças e a versão moram nos Ajustes.
+    }
+}
+
+/**
+ * As opções de uma tela: folha que sobe de baixo no celular, diálogo na TV —
+ * a folha é gesto de dedo, e o foco do controle não entra nela com segurança.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun FolhaDeOpcoes(onFechar: () -> Unit, conteudo: @Composable () -> Unit) {
+    if (Device.isTv(LocalContext.current)) {
+        AlertDialog(
+            onDismissRequest = onFechar,
+            containerColor = LabTheme.surface,
+            text = { conteudo() },
+            confirmButton = { TextButton(onClick = onFechar) { Text(stringResource(R.string.fechar)) } },
+        )
+    } else {
+        ModalBottomSheet(onDismissRequest = onFechar, containerColor = LabTheme.surface) { conteudo() }
     }
 }
 

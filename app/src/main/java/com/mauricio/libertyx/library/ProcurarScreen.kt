@@ -1,5 +1,9 @@
 package com.mauricio.libertyx.library
 
+import com.mauricio.libertyx.tv.setasTrocamDeCampo
+import com.mauricio.libertyx.tv.tvFocus
+import com.mauricio.libertyx.core.Device
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -63,6 +67,7 @@ import java.text.Normalizer
 fun ProcurarScreen() {
     val contexto = LocalContext.current
     val foco = LocalFocusManager.current
+    val naTv = remember { Device.isTv(contexto) }
     var termo by rememberSaveable { mutableStateOf("") }
     var grupos by remember { mutableStateOf(MediaLibrary.ultima ?: emptyList()) }
     LaunchedEffect(Unit) { if (MediaLibrary.ultima == null) grupos = MediaLibrary.scan(contexto) }
@@ -112,7 +117,11 @@ fun ProcurarScreen() {
             item { Titulo(stringResource(R.string.aba_procurar), stringResource(R.string.procurar_explica)) }
             item {
                 Spacer(Modifier.height(16.dp))
-                CampoDeBusca(termo, { termo = it }, onPronto = { foco.clearFocus() })
+                // Na TV, soltar o foco o deixaria em lugar nenhum: ele desce
+                // para o primeiro resultado.
+                CampoDeBusca(termo, { termo = it }, onPronto = {
+                    if (naTv) foco.moveFocus(FocusDirection.Down) else foco.clearFocus()
+                })
                 Spacer(Modifier.height(18.dp))
             }
 
@@ -150,7 +159,10 @@ fun ProcurarScreen() {
 private fun CampoDeBusca(texto: String, onTexto: (String) -> Unit, onPronto: () -> Unit) {
     val forma = RoundedCornerShape(16.dp)
     Row(
-        Modifier.fillMaxWidth().height(52.dp).background(LabTheme.glass, forma)
+        // As setas saem do campo para a lista e para as abas: sem isto, o
+        // controle remoto entra no campo e não sai mais.
+        Modifier.fillMaxWidth().height(52.dp).tvFocus(16.dp, scale = 1.02f).setasTrocamDeCampo()
+            .background(LabTheme.glass, forma)
             .border(0.5.dp, LabTheme.glassBorder, forma).padding(start = 14.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
