@@ -31,18 +31,27 @@ Limites da Play: título 30, descrição curta 80, descrição completa 4000 car
 LibertyX Player
 ```
 
-**Descrição curta** (78/80)
+**Descrição curta** (75/80)
 
 ```
-Toca tudo: MKV, HEVC, legendas e a pasta do seu PC, com busca quadro a quadro.
+Toca MKV, HEVC e 4K do aparelho, do PC, NAS, Jellyfin e Emby, com legendas.
 ```
 
-**Descrição completa** (1668/4000)
+**Descrição completa** (2277/4000)
 
 ```
 O player de vídeo para quem tem uma coleção de verdade.
 
-O LibertyX abre praticamente qualquer arquivo — MKV, MP4, AVI, HEVC/H.265, 4K e HDR, áudio AC-3 e DTS, legendas SRT, ASS e PGS — sem converter nada. E toca direto do seu PC, NAS ou HD na rede, sem copiar para o celular.
+O LibertyX abre praticamente qualquer arquivo — MKV, MP4, AVI, HEVC/H.265, 4K e HDR, áudio AC-3 e DTS, legendas SRT, ASS e PGS — sem converter nada. E toca direto do seu PC, NAS ou servidor Jellyfin ou Emby, sem copiar nada para o aparelho.
+
+★ OS SERVIDORES DA SUA CASA
+• SMB (Windows, macOS, Linux, Samba, NAS): o LibertyX acha sozinho na sua rede. Entre com usuário e senha, ou como convidado.
+• Jellyfin e Emby: Continuar assistindo, A seguir e Adicionados recentemente; séries, temporadas e coleções com capa; o progresso junto com o servidor. O episódio terminado dá lugar ao próximo.
+• WebDAV e Nextcloud.
+É só tocar em + na biblioteca para adicionar um servidor.
+
+★ TUDO NO MESMO LUGAR
+Início, Arquivos, Procurar e Ajustes sempre à mão. A tela inicial mostra o que você assistiu, venha do aparelho ou de um servidor, e atalhos para os seus servidores.
 
 ★ BUSCA QUADRO A QUADRO
 Arraste a barra e a imagem acompanha o dedo, quadro a quadro, sem os pulos de keyframe dos outros players. Deslize devagar para uma rolagem fina, de precisão.
@@ -54,22 +63,18 @@ Arraste a barra e a imagem acompanha o dedo, quadro a quadro, sem os pulos de ke
 • Pinça para ampliar e preencher a tela
 
 ★ FERRAMENTAS À MÃO
-Faixa de áudio, legenda, velocidade de 0,5× a 6×, proporção, repetir, aleatório, modo noturno, bloqueio de tela e retomar de onde parou.
-
-★ BIBLIOTECA ORGANIZADA
-Seus vídeos por pasta, com capas, duração e progresso. Puxe para atualizar.
+Faixa de áudio, legendas (as que estão ao lado do vídeo entram sozinhas, também na rede), atraso da legenda, velocidade de 0,5× a 6×, proporção, repetir, aleatório, modo noturno, bloqueio de tela e retomar de onde parou.
 
 ★ CELULAR, TABLET E TV
-Na TV, funciona inteiro com o controle remoto.
+Na TV, tudo funciona com o controle remoto: abas no alto, foco dourado, segurar OK abre o menu do cartão, e ◀ ▶ buscam sem trancos.
 
-★ LIBERTYX PRO — 7 DIAS GRÁTIS
-Todo o player acima é grátis para sempre. O Pro é uma compra única, sem assinatura, que libera:
-• Pastas da rede (SMB): PC, NAS, HD na rede
-• Áudio em segundo plano e Android Auto
+★ TUDO LIBERADO
+Nesta fase, os recursos do LibertyX Pro vêm liberados para todos, sem prazo e sem compra:
+• Servidores de casa: SMB, Jellyfin, Emby e WebDAV
+• Som com a tela apagada, com controles na tela de bloqueio, e Android Auto
 • Janela flutuante
 • Timer para dormir
 • Captura de quadro na resolução máxima
-Nos primeiros 7 dias tudo vem liberado para você experimentar. A compra vale em todos os aparelhos da sua conta Google.
 
 ★ SEM ANÚNCIOS, SEM RASTREAMENTO
 O LibertyX não coleta nenhum dado. Seus vídeos e suas senhas ficam no seu aparelho.
@@ -89,18 +94,27 @@ Imagens de demonstração: filmes abertos da Blender Foundation (CC-BY).
 LibertyX Player
 ```
 
-**Descrição curta** (80/80)
+**Descrição curta** (78/80)
 
 ```
-Plays everything — MKV, HEVC, subtitles, your NAS — with frame-accurate seeking.
+Plays MKV, HEVC and 4K from your device, PC, NAS, Jellyfin or Emby, with subs.
 ```
 
-**Descrição completa** (1655/4000)
+**Descrição completa** (2241/4000)
 
 ```
 The video player for people with a real collection.
 
-LibertyX opens almost any file — MKV, MP4, AVI, HEVC/H.265, 4K and HDR, AC-3 and DTS audio, SRT, ASS and PGS subtitles — with no converting. And it plays straight from your PC, NAS or network drive, without copying anything to your phone.
+LibertyX opens almost any file — MKV, MP4, AVI, HEVC/H.265, 4K and HDR, AC-3 and DTS audio, SRT, ASS and PGS subtitles — with no converting. And it plays straight from your PC, NAS, Jellyfin or Emby server, without copying anything to your device.
+
+★ YOUR HOME SERVERS
+• SMB (Windows, macOS, Linux, Samba, NAS): LibertyX finds them on your network by itself. Sign in with user and password, or as a guest.
+• Jellyfin and Emby: Continue Watching, Next Up and Recently Added; series, seasons and collections with artwork; progress kept in sync with the server. A finished episode makes way for the next one.
+• WebDAV and Nextcloud.
+Just tap + in the library to add a server.
+
+★ EVERYTHING IN ONE PLACE
+Home, Files, Search and Settings always at hand. The home screen shows what you watched, from the device or a server, plus shortcuts to your servers.
 
 ★ FRAME-ACCURATE SEEKING
 Drag the bar and the picture follows your finger, frame by frame, without the keyframe jumps of other players. Slide slowly for fine, precise scrubbing.
@@ -112,22 +126,18 @@ Drag the bar and the picture follows your finger, frame by frame, without the ke
 • Pinch to zoom and fill the screen
 
 ★ TOOLS AT HAND
-Audio track, subtitles, speed from 0.5× to 6×, aspect ratio, repeat, shuffle, night mode, screen lock and resume where you left off.
-
-★ AN ORGANIZED LIBRARY
-Your videos by folder, with thumbnails, duration and progress. Pull to refresh.
+Audio track, subtitles (the ones next to the video load by themselves, on the network too), subtitle delay, speed from 0.5× to 6×, aspect ratio, repeat, shuffle, night mode, screen lock and resume where you left off.
 
 ★ PHONE, TABLET AND TV
-On TV, everything works with the remote.
+On TV, everything works with the remote: tabs at the top, gold focus, hold OK for the card menu, and ◀ ▶ seek without stutter.
 
-★ LIBERTYX PRO — 7 DAYS FREE
-Everything above is free forever. Pro is a one-time purchase, no subscription, that unlocks:
-• Network folders (SMB): PC, NAS, network drives
-• Background audio and Android Auto
+★ EVERYTHING UNLOCKED
+For now, every LibertyX Pro feature is unlocked for everyone, with no time limit and no purchase:
+• Home servers: SMB, Jellyfin, Emby and WebDAV
+• Audio with the screen off, with lock-screen controls, and Android Auto
 • Floating window (picture-in-picture)
 • Sleep timer
 • Full-resolution frame capture
-For the first 7 days everything is unlocked so you can try it. The purchase works on every device with your Google account.
 
 ★ NO ADS, NO TRACKING
 LibertyX collects no data at all. Your videos and passwords stay on your device.
@@ -147,18 +157,27 @@ Demo footage: open movies by the Blender Foundation (CC-BY).
 LibertyX Player
 ```
 
-**Descrição curta** (78/80)
+**Descrição curta** (77/80)
 
 ```
-Lo reproduce todo: MKV, HEVC, subtítulos y tu NAS, con búsqueda por fotograma.
+Reproduce MKV, HEVC y 4K del móvil, PC, NAS, Jellyfin o Emby, con subtítulos.
 ```
 
-**Descrição completa** (1800/4000)
+**Descrição completa** (2424/4000)
 
 ```
-El reproductor de vídeo para quien tiene una colección de verdad.
+El reproductor de video para quien tiene una colección de verdad.
 
-LibertyX abre casi cualquier archivo — MKV, MP4, AVI, HEVC/H.265, 4K y HDR, audio AC-3 y DTS, subtítulos SRT, ASS y PGS — sin convertir nada. Y reproduce directo desde tu PC, NAS o disco en red, sin copiar nada al móvil.
+LibertyX abre casi cualquier archivo — MKV, MP4, AVI, HEVC/H.265, 4K y HDR, audio AC-3 y DTS, subtítulos SRT, ASS y PGS — sin convertir nada. Y reproduce directo desde tu PC, NAS o servidor Jellyfin o Emby, sin copiar nada al dispositivo.
+
+★ LOS SERVIDORES DE TU CASA
+• SMB (Windows, macOS, Linux, Samba, NAS): LibertyX los encuentra solo en tu red. Entra con usuario y contraseña, o como invitado.
+• Jellyfin y Emby: Continuar viendo, A continuación y Agregados recientemente; series, temporadas y colecciones con portada; el progreso sincronizado con el servidor. El episodio terminado deja su lugar al siguiente.
+• WebDAV y Nextcloud.
+Solo toca + en la biblioteca para agregar un servidor.
+
+★ TODO EN UN MISMO LUGAR
+Inicio, Archivos, Buscar y Ajustes siempre a mano. La pantalla de inicio muestra lo que viste, del dispositivo o de un servidor, y accesos a tus servidores.
 
 ★ BÚSQUEDA FOTOGRAMA A FOTOGRAMA
 Arrastra la barra y la imagen sigue tu dedo, fotograma a fotograma, sin los saltos de keyframe de otros reproductores. Desliza despacio para un avance fino y preciso.
@@ -170,29 +189,62 @@ Arrastra la barra y la imagen sigue tu dedo, fotograma a fotograma, sin los salt
 • Pellizca para ampliar y llenar la pantalla
 
 ★ HERRAMIENTAS A MANO
-Pista de audio, subtítulos, velocidad de 0,5× a 6×, proporción, repetir, aleatorio, modo nocturno, bloqueo de pantalla y continuar donde lo dejaste.
-
-★ UNA BIBLIOTECA ORDENADA
-Tus vídeos por carpeta, con miniaturas, duración y progreso. Desliza hacia abajo para actualizar.
+Pista de audio, subtítulos (los que están junto al video se cargan solos, también en la red), retraso de subtítulos, velocidad de 0,5× a 6×, proporción, repetir, aleatorio, modo nocturno, bloqueo de pantalla y continuar donde lo dejaste.
 
 ★ MÓVIL, TABLETA Y TV
-En la TV, todo funciona con el control remoto.
+En la TV, todo funciona con el control remoto: pestañas arriba, foco dorado, mantener OK abre el menú de la tarjeta, y ◀ ▶ buscan sin tirones.
 
-★ LIBERTYX PRO — 7 DÍAS GRATIS
-Todo lo anterior es gratis para siempre. Pro es una compra única, sin suscripción, que desbloquea:
-• Carpetas de red (SMB): PC, NAS, discos en red
-• Audio en segundo plano y Android Auto
+★ TODO DESBLOQUEADO
+Por ahora, todas las funciones de LibertyX Pro están desbloqueadas para todos, sin plazo y sin compra:
+• Servidores de casa: SMB, Jellyfin, Emby y WebDAV
+• Sonido con la pantalla apagada, con controles en la pantalla de bloqueo, y Android Auto
 • Ventana flotante
 • Temporizador para dormir
 • Captura de fotograma a resolución máxima
-Durante los primeros 7 días todo está desbloqueado para que lo pruebes. La compra vale en todos los dispositivos de tu cuenta de Google.
 
 ★ SIN ANUNCIOS NI RASTREO
-LibertyX no recopila ningún dato. Tus vídeos y tus contraseñas se quedan en tu dispositivo.
+LibertyX no recopila ningún dato. Tus videos y tus contraseñas se quedan en tu dispositivo.
 
 En español, inglés y portugués.
 
-Tus vídeos. Tu libertad.
+Tus videos. Tu libertad.
 
 Imágenes de demostración: películas abiertas de la Blender Foundation (CC-BY).
+```
+
+## Notas da versão (teste fechado, 2026-11-04)
+
+Limite de 500 caracteres por idioma. No console, num campo só:
+
+```
+<pt-BR>
+• Novos servidores: Jellyfin, Emby e WebDAV/Nextcloud, além do SMB
+• Jellyfin/Emby: Continuar assistindo, A seguir, séries com capa e progresso junto com o servidor
+• Nova navegação: Início, Arquivos, Procurar e Ajustes
+• Histórico de todas as origens na tela inicial
+• Atraso da legenda; legendas ao lado do vídeo também na rede
+• Som com a tela apagada, com controles na tela de bloqueio
+• TV: abas no alto, segurar OK abre o menu, busca sem trancos
+• Pro liberado para todos, sem prazo
+</pt-BR>
+<en-US>
+• New servers: Jellyfin, Emby and WebDAV/Nextcloud, besides SMB
+• Jellyfin/Emby: Continue Watching, Next Up, series with artwork and progress synced with the server
+• New navigation: Home, Files, Search and Settings
+• History from every source on the home screen
+• Subtitle delay; subtitles next to the video on the network too
+• Audio with the screen off, with lock-screen controls
+• TV: tabs at the top, hold OK for the menu, smooth seeking
+• Pro unlocked for everyone, no time limit
+</en-US>
+<es-419>
+• Nuevos servidores: Jellyfin, Emby y WebDAV/Nextcloud, además de SMB
+• Jellyfin/Emby: Continuar viendo, A continuación, series con portada y progreso sincronizado
+• Nueva navegación: Inicio, Archivos, Buscar y Ajustes
+• Historial de todos los orígenes en el inicio
+• Retraso de subtítulos; subtítulos junto al video también en la red
+• Sonido con la pantalla apagada y controles en el bloqueo
+• TV: pestañas arriba, mantener OK abre el menú, búsqueda fluida
+• Pro desbloqueado para todos, sin plazo
+</es-419>
 ```
