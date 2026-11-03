@@ -170,10 +170,15 @@ android {
         // na hora do envio — por isso são um tipo de build e não opções: a
         // assinatura é a de envio, o Pro nunca vem liberado, e a chave LibertyX
         // (pagamento fora da Play) não existe.
+        //
+        // Por enquanto, na Play, o Pro vem liberado para todos, sem prazo
+        // (decisão do dono em 2026-11-04, enquanto o app está no teste
+        // fechado). A compra volta numa atualização futura: é só tornar a
+        // pôr "false" aqui.
         create("loja") {
             initWith(getByName("release"))
             signingConfig = signingConfigs.findByName("envio")
-            buildConfigField("boolean", "LIBERADO", "false")
+            buildConfigField("boolean", "LIBERADO", "true")
             buildConfigField("int", "DIAS_DE_TESTE", "7")
             buildConfigField("boolean", "CHAVE_LIBERTYX", "false")
             buildConfigField("boolean", "DEMONSTRACAO", "true")

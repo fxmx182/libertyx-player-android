@@ -237,7 +237,7 @@ Quem vê o paywall depende de onde o APK nasceu:
 | `assembleRelease` nesta máquina (`dist/`) | **liberado** — é o do dono |
 | o mesmo com `-PlibertyxLoja` | travado, para testar a tela de compra |
 | o do CI (release do GitHub) | travado, igual à loja |
-| `bundleLoja` (a Play Store) | travado, sempre, e sem a chave LibertyX |
+| `bundleLoja` (a Play Store) | **liberado** por enquanto, sem prazo (desde 04/11/2026; a compra volta numa atualização), e sem a chave LibertyX |
 | `assembleAmazon` (Amazon Appstore, só TV) | travado, compra pela Amazon, sem a chave LibertyX |
 
 ### Amazon Appstore (Fire TV)
