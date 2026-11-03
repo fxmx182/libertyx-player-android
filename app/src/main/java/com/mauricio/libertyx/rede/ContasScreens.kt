@@ -96,6 +96,7 @@ import com.mauricio.libertyx.smb.SmbServer
 import com.mauricio.libertyx.smb.SmbServerStore
 import com.mauricio.libertyx.tv.setasTrocamDeCampo
 import com.mauricio.libertyx.tv.tvFocus
+import com.mauricio.libertyx.tv.RolagemDeTvNasBordas
 import kotlinx.coroutines.launch
 
 val ContaDeRede.Tipo.icone: ImageVector
@@ -626,7 +627,9 @@ private fun Pasta(
         return
     }
 
-    if (opcoes.layout == LibraryLayout.GRID) {
+    // Na TV a grade só rola quando o foco chega à borda, com folga para o
+    // cartão aumentado: andar de lado numa fileira não mexe a tela.
+    if (opcoes.layout == LibraryLayout.GRID) RolagemDeTvNasBordas(margem = 28.dp) {
         LazyVerticalGrid(
             columns = GridCells.Adaptive(minSize = if (naTv) 158.dp else Escala.capa()),
             modifier = Modifier.fillMaxSize(),
@@ -655,7 +658,7 @@ private fun Pasta(
                 }
             }
         }
-    } else {
+    } else RolagemDeTvNasBordas(margem = 28.dp) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 12.dp)) {
             if (naTv) {
                 item(key = "opcoes") { Box(Modifier.padding(horizontal = 12.dp)) { LinhaDeOpcoes(onOpcoes) } }

@@ -151,3 +151,38 @@ fun RolagemDeTv(inicio: Dp, conteudo: @Composable () -> Unit) {
     }
     CompositionLocalProvider(LocalBringIntoViewSpec provides regra, content = conteudo)
 }
+
+/**
+ * A faixa que só rola quando o foco chega à borda, como no app do Jellyfin.
+ *
+ * Com o foco preso num lugar (ver [RolagemDeTv]) a faixa inteira deslizava a
+ * cada clique — parecia que as fileiras se mexiam sozinhas. Aqui o foco anda
+ * pelos cartões que já estão na tela e a faixa fica parada; ao chegar à borda,
+ * ela anda o bastante para o cartão inteiro aparecer.
+ *
+ * A [margem] é a folga da borda: o cartão focado cresce (ver [tvFocus]), e sem
+ * folga o crescimento passava da borda e a faixa ajustava uns pixels a cada
+ * clique — os saltinhos.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun RolagemDeTvNasBordas(margem: Dp, conteudo: @Composable () -> Unit) {
+    if (!Device.isTv(LocalContext.current)) {
+        conteudo()
+        return
+    }
+    val px = with(LocalDensity.current) { margem.toPx() }
+    val regra = remember(px) {
+        object : BringIntoViewSpec {
+            override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
+                val fim = offset + size
+                return when {
+                    offset < px -> offset - px
+                    fim > containerSize - px -> fim - (containerSize - px)
+                    else -> 0f
+                }
+            }
+        }
+    }
+    CompositionLocalProvider(LocalBringIntoViewSpec provides regra, content = conteudo)
+}

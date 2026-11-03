@@ -70,6 +70,7 @@ import com.mauricio.libertyx.player.Playback
 import com.mauricio.libertyx.tv.tvFocus
 import com.mauricio.libertyx.tv.cliqueComOpcoes
 import com.mauricio.libertyx.tv.RolagemDeTv
+import com.mauricio.libertyx.tv.RolagemDeTvNasBordas
 import com.mauricio.libertyx.library.MenuDoItem
 import com.mauricio.libertyx.library.OpcaoDoMenu
 import com.mauricio.libertyx.core.ResumeStore
@@ -308,7 +309,7 @@ private fun Faixa(titulo: String, onTitulo: (() -> Unit)? = null, conteudo: Lazy
                 )
             }
         }
-        RolagemDeTv(inicio = 16.dp) {
+        RolagemDeTvNasBordas(margem = 28.dp) {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
