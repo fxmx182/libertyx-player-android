@@ -2,7 +2,9 @@ package com.mauricio.libertyx.tv
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -96,3 +98,19 @@ fun Modifier.setasTrocamDeCampo(): Modifier = composed {
 @Composable
 fun rememberTvInteraction(): MutableInteractionSource =
     remember { MutableInteractionSource() }
+
+/**
+ * O clique, e o "segurar" que abre as opções do cartão.
+ *
+ * No controle remoto, segurar o OK é o toque longo do celular — é assim que o
+ * app do Jellyfin e a tela inicial da própria TV abrem o menu de um item. A
+ * tecla de menu, nos controles que a têm, faz o mesmo: segurar um botão não é
+ * coisa que todo mundo adivinha.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+fun Modifier.cliqueComOpcoes(onClick: () -> Unit, onOpcoes: () -> Unit): Modifier =
+    onPreviewKeyEvent { evento ->
+        if (evento.key != Key.Menu) return@onPreviewKeyEvent false
+        if (evento.type == KeyEventType.KeyUp) onOpcoes()
+        true
+    }.combinedClickable(onClick = onClick, onLongClick = onOpcoes)

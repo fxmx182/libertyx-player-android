@@ -228,6 +228,16 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
         enviar("/Sessions/Playing" + evento?.let { "/$it" }.orEmpty(), corpo)
     }
 
+    /**
+     * A caixinha "Já reproduzido" do app do Jellyfin: marca ou desmarca o
+     * item. Numa série ou temporada, vale para todos os episódios; e o
+     * servidor zera onde parou, então o vídeo sai do "Continuar" dos dois
+     * jeitos.
+     */
+    suspend fun marcarVisto(itemId: String, visto: Boolean) {
+        pedirTexto("/Users/$usuarioId/PlayedItems/$itemId", emptyList(), JSONObject(), apagar = !visto)
+    }
+
     /** O arquivo original, sem conversão (`static=true`). */
     fun urlDoVideo(id: String): Uri? =
         url("/Videos/$id/stream", listOf("static" to "true", "MediaSourceId" to id) + chaveNaConsulta)
@@ -308,6 +318,7 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
         caminho: String,
         consulta: List<Pair<String, String>>,
         corpo: JSONObject?,
+        apagar: Boolean = false,
     ): String = withContext(Dispatchers.IO) {
         val url = url(caminho, consulta) ?: throw ErroDeServidor(Textos.get(R.string.erro_endereco_invalido))
         val pedido = Request.Builder().url(url.toString())
@@ -315,7 +326,10 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
             .header("Authorization", cabecalho)
             .header("X-Emby-Authorization", cabecalho)
             .header("Accept", "application/json")
-            .apply { corpo?.let { post(it.toString().toRequestBody("application/json".toMediaType())) } }
+            .apply {
+                if (apagar) delete()
+                else corpo?.let { post(it.toString().toRequestBody("application/json".toMediaType())) }
+            }
             .build()
         ContasDeRede.http.newCall(pedido).execute().use { resposta ->
             if (resposta.code == 404) throw naoEhServidor()

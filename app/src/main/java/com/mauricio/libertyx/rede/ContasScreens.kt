@@ -56,6 +56,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Alignment
@@ -397,7 +398,12 @@ private sealed interface Nivel {
     data class Item(override val nome: String, val item: ServidorDeMidia.Item) : Nivel
 }
 
-private data class Conteudo(val pastas: List<Pair<Nivel, ImageVector>>, val videos: List<MediaItem>)
+private data class Conteudo(
+    val pastas: List<Pair<Nivel, ImageVector>>,
+    val videos: List<MediaItem>,
+    /** Jellyfin e Emby: o item do servidor por trás de cada vídeo, para o "Já reproduzido". */
+    val doServidor: Map<String, ServidorDeMidia.Item> = emptyMap(),
+)
 
 /**
  * Dentro de uma conta WebDAV, Jellyfin ou Emby — o mesmo desenho das pastas
@@ -421,6 +427,11 @@ fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit) {
 
     var conteudo by remember { mutableStateOf<Conteudo?>(null) }
     var erro by remember { mutableStateOf<String?>(null) }
+    var menuDe by remember { mutableStateOf<ServidorDeMidia.Item?>(null) }
+    // Sobe quando um vídeo é marcado como visto: a pasta se relê por baixo,
+    // sem apagar a tela, e as barrinhas de onde parou se refazem.
+    var recarga by remember { mutableIntStateOf(0) }
+    val escopo = rememberCoroutineScope()
 
     LaunchedEffect(atual) {
         conteudo = null
@@ -490,10 +501,22 @@ fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit) {
                         conteudo = pronto,
                         opcoes = opcoes,
                         naTv = naTv,
+                        volta = recarga,
                         onAbrir = { pilha = pilha + it },
                         onOpcoes = { mostrandoOpcoes = true },
+                        onMenu = { video -> pronto.doServidor[video.id]?.let { menuDe = it } },
                     )
                 }
+            }
+        }
+    }
+
+    menuDe?.let { alvo ->
+        val servidor = remember(conta.id) { ServidorDeMidia(conta, loja.segredo(conta)) }
+        MenuDoVisto(servidor, conta, alvo, onFechar = { menuDe = null }) {
+            recarga++
+            escopo.launch {
+                runCatching { ler(conta, loja.segredo(conta), atual) }.onSuccess { conteudo = it }
             }
         }
     }
@@ -543,6 +566,7 @@ private suspend fun ler(conta: ContaDeRede, segredo: String?, nivel: Nivel): Con
     is Nivel.Item -> {
         val itens = ServidorDeMidia(conta, segredo).itens(nivel.item)
         Conteudo(
+            doServidor = itens.filter { it.ehVideo }.associateBy { MediaOrigin.Midia(conta.id, it.id).resumeKey },
             pastas = itens.filter { it.ehPasta }.map { Nivel.Item(it.titulo, it) to iconeDoTipo(it.tipo) },
             videos = itens.filter { it.ehVideo }.map {
                 val origem = MediaOrigin.Midia(conta.id, it.id)
@@ -572,8 +596,10 @@ private fun Pasta(
     conteudo: Conteudo,
     opcoes: LibraryOptions,
     naTv: Boolean,
+    volta: Int,
     onAbrir: (Nivel) -> Unit,
     onOpcoes: () -> Unit,
+    onMenu: (MediaItem) -> Unit,
 ) {
     val contexto = LocalContext.current
     // A fila de reprodução segue a ordem da tela: "próximo" vai para o vídeo
@@ -608,7 +634,7 @@ private fun Pasta(
             }
             items(videos, key = { it.id }) { item ->
                 Box(Modifier.padding(bottom = 8.dp)) {
-                    CartaoDeVideo(item) { Playback.start(contexto, item, videos) }
+                    CartaoDeVideo(item, volta, onOpcoes = menuDe(conteudo, item, onMenu)) { Playback.start(contexto, item, videos) }
                 }
             }
         }
@@ -623,11 +649,15 @@ private fun Pasta(
                 }
             }
             items(videos, key = { it.id }) { item ->
-                LinhaDeVideo(item) { Playback.start(contexto, item, videos) }
+                LinhaDeVideo(item, volta, onOpcoes = menuDe(conteudo, item, onMenu)) { Playback.start(contexto, item, videos) }
             }
         }
     }
 }
+
+/** Só vídeo do Jellyfin ou do Emby tem menu; no WebDAV, segurar não faz nada. */
+private fun menuDe(conteudo: Conteudo, item: MediaItem, onMenu: (MediaItem) -> Unit): (() -> Unit)? =
+    if (item.id in conteudo.doServidor) ({ onMenu(item) }) else null
 
 /** O atalho das opções na TV, onde o botão da barra de cima não é alcançável. */
 @Composable

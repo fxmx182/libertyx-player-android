@@ -66,6 +66,10 @@ android {
         // fora da Play: a política de pagamentos da loja proíbe outro meio de pagamento para
         // liberar recurso do app, então o tipo `loja` desliga (ver lá embaixo).
         buildConfigField("boolean", "CHAVE_LIBERTYX", "true")
+        // A Sintel na TV sem vídeo: só no que vai para as lojas. O revisor da Amazon
+        // recusou o app quando a Fire TV dele, sem vídeo e sem servidor, não tinha o
+        // que tocar (ver loja/AMAZON.md); fora da loja ela só ocupava o início.
+        buildConfigField("boolean", "DEMONSTRACAO", "false")
         // Só para testar o fim do teste sem esperar uma semana (o emulador
         // não deixa adiantar o relógio): `-PlibertyxDiasDeTeste=0`.
         buildConfigField(
@@ -172,6 +176,7 @@ android {
             buildConfigField("boolean", "LIBERADO", "false")
             buildConfigField("int", "DIAS_DE_TESTE", "7")
             buildConfigField("boolean", "CHAVE_LIBERTYX", "false")
+            buildConfigField("boolean", "DEMONSTRACAO", "true")
             matchingFallbacks += "release"
         }
         // O que vai para a Amazon Appstore (Fire TV e Fire TV Stick): `./gradlew assembleAmazon`.
@@ -185,6 +190,7 @@ android {
             buildConfigField("boolean", "LIBERADO", "false")
             buildConfigField("int", "DIAS_DE_TESTE", "7")
             buildConfigField("boolean", "CHAVE_LIBERTYX", "false")
+            buildConfigField("boolean", "DEMONSTRACAO", "true")
             matchingFallbacks += "release"
         }
         debug {

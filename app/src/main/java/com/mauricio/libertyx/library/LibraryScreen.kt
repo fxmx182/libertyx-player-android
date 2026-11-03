@@ -29,6 +29,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -115,6 +124,7 @@ import com.mauricio.libertyx.core.resumeKey
 import com.mauricio.libertyx.player.Playback
 import com.mauricio.libertyx.core.Demonstracao
 import com.mauricio.libertyx.tv.tvFocus
+import com.mauricio.libertyx.tv.cliqueComOpcoes
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -720,12 +730,12 @@ internal fun Pasta(
  * deixa a tela respirar mais que um cartão dentro de outro.
  */
 @Composable
-internal fun CartaoDeVideo(item: MediaItem, volta: Int = 0, onClick: () -> Unit) {
+internal fun CartaoDeVideo(item: MediaItem, volta: Int = 0, onOpcoes: (() -> Unit)? = null, onClick: () -> Unit) {
     val contexto = LocalContext.current
     val progresso = remember(item.id, volta) {
         ResumeStore.get(contexto).progress(item.origin.resumeKey)
     }
-    Column(Modifier.tvFocus(14.dp).clickable(onClick = onClick)) {
+    Column(Modifier.tvFocus(14.dp).cliqueOuOpcoes(onClick, onOpcoes)) {
         Box(
             Modifier.fillMaxWidth().aspectRatio(16f / 10f).clip(RoundedCornerShape(14.dp))
                 .border(0.5.dp, LabTheme.glassBorder, RoundedCornerShape(14.dp)),
@@ -744,9 +754,13 @@ internal fun CartaoDeVideo(item: MediaItem, volta: Int = 0, onClick: () -> Unit)
     }
 }
 
+/** O menu só nos cartões que têm o que oferecer; nos outros, segurar não faz nada. */
+private fun Modifier.cliqueOuOpcoes(onClick: () -> Unit, onOpcoes: (() -> Unit)?): Modifier =
+    if (onOpcoes == null) clickable(onClick = onClick) else cliqueComOpcoes(onClick, onOpcoes)
+
 /** Lista: mais itens por tela, bom para pastas com muitos vídeos. */
 @Composable
-internal fun LinhaDeVideo(item: MediaItem, volta: Int = 0, onClick: () -> Unit) {
+internal fun LinhaDeVideo(item: MediaItem, volta: Int = 0, onOpcoes: (() -> Unit)? = null, onClick: () -> Unit) {
     val contexto = LocalContext.current
     val progresso = remember(item.id, volta) {
         ResumeStore.get(contexto).progress(item.origin.resumeKey)
@@ -754,7 +768,7 @@ internal fun LinhaDeVideo(item: MediaItem, volta: Int = 0, onClick: () -> Unit) 
     Row(
         Modifier.fillMaxWidth().tvFocus(LabTheme.radiusSmall, scale = 1.02f)
             .clip(RoundedCornerShape(LabTheme.radiusSmall))
-            .clickable(onClick = onClick)
+            .cliqueOuOpcoes(onClick, onOpcoes)
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -986,6 +1000,74 @@ internal fun FolhaDeOpcoes(onFechar: () -> Unit, conteudo: @Composable () -> Uni
         )
     } else {
         ModalBottomSheet(onDismissRequest = onFechar, containerColor = LabTheme.surface) { conteudo() }
+    }
+}
+
+/**
+ * O menu de um vídeo: o toque longo no celular, segurar o OK na TV. O nome no
+ * alto diz de qual cartão ele é — na TV o diálogo cobre a fileira.
+ */
+@Composable
+internal fun MenuDoItem(titulo: String, onFechar: () -> Unit, opcoes: @Composable ColumnScope.() -> Unit) {
+    // Segurar o OK abre o menu com a tecla ainda apertada: as repetições que
+    // o controle manda e o soltar dela chegariam à primeira opção e a
+    // escolheriam sozinhas. Só vale a tecla apertada de novo, com o menu aberto.
+    var armado by remember { mutableStateOf(false) }
+    FolhaDeOpcoes(onFechar) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 8.dp).padding(bottom = 16.dp)
+                .onPreviewKeyEvent { evento ->
+                    if (evento.type == KeyEventType.KeyDown && evento.nativeKeyEvent.repeatCount == 0) armado = true
+                    !armado
+                },
+        ) {
+            Text(
+                titulo, color = LabTheme.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+                maxLines = 2, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            )
+            opcoes()
+        }
+    }
+}
+
+/**
+ * Uma opção do [MenuDoItem]. Com [marcado] vira a caixinha de marcar e
+ * desmarcar, como o "Já reproduzido" do app do Jellyfin.
+ *
+ * Na TV a primeira já chega com o foco: o diálogo abre com o OK ainda
+ * apertado, e sem foco a próxima seta não teria por onde começar.
+ */
+@Composable
+internal fun OpcaoDoMenu(
+    texto: String,
+    icone: ImageVector? = null,
+    marcado: Boolean? = null,
+    primeira: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val foco = remember { FocusRequester() }
+    val naTv = Device.isTv(LocalContext.current)
+    if (primeira && naTv) LaunchedEffect(Unit) { runCatching { foco.requestFocus() } }
+    Row(
+        Modifier.fillMaxWidth().focusRequester(foco)
+            .tvFocus(LabTheme.radiusSmall, scale = 1.02f)
+            .clip(RoundedCornerShape(LabTheme.radiusSmall))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .heightIn(min = 44.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (marcado != null) {
+            Checkbox(
+                checked = marcado, onCheckedChange = null,
+                colors = CheckboxDefaults.colors(checkedColor = LabTheme.accent, checkmarkColor = Color.Black),
+            )
+        } else if (icone != null) {
+            Icon(icone, null, tint = LabTheme.muted, modifier = Modifier.size(22.dp))
+        }
+        Spacer(Modifier.width(14.dp))
+        Text(texto, color = LabTheme.text, fontSize = 15.sp)
     }
 }
 

@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -58,6 +59,9 @@ import com.mauricio.libertyx.core.Historico
 import com.mauricio.libertyx.library.rememberVoltaAoApp
 import com.mauricio.libertyx.rede.AtalhoDeServidor
 import com.mauricio.libertyx.R
+import com.mauricio.libertyx.BuildConfig
+import com.mauricio.libertyx.library.MenuDoItem
+import com.mauricio.libertyx.library.OpcaoDoMenu
 import androidx.compose.ui.res.stringResource
 import com.mauricio.libertyx.core.Demonstracao
 import androidx.compose.ui.res.painterResource
@@ -87,6 +91,14 @@ fun TvHomeScreen(onOpenServers: () -> Unit, onAtalho: (AtalhoDeServidor) -> Unit
     val versaoDoHistorico = Historico.versao.intValue
     val historico = remember(versaoDoHistorico, volta) { Historico.get(contexto).itens.take(20) }
     val primeiroFoco = remember { FocusRequester() }
+    // O cartão removido levaria o foco junto, e a TV o largaria nas abas.
+    var refocar by remember { mutableStateOf(false) }
+    LaunchedEffect(versaoDoHistorico) {
+        if (refocar) {
+            refocar = false
+            runCatching { primeiroFoco.requestFocus() }
+        }
+    }
 
     val grupos by produceState<List<VideoGroup>?>(initialValue = null) {
         value = MediaLibrary.scan(contexto)
@@ -111,6 +123,10 @@ fun TvHomeScreen(onOpenServers: () -> Unit, onAtalho: (AtalhoDeServidor) -> Unit
                             item = item,
                             modifier = if (item === historico.first()) Modifier.focusRequester(primeiroFoco) else Modifier,
                             volta = volta,
+                            onRemover = {
+                                refocar = true
+                                Historico.get(contexto).remover(item)
+                            },
                         ) { Playback.start(contexto, item, historico) }
                     }
                 }
@@ -149,7 +165,7 @@ fun TvHomeScreen(onOpenServers: () -> Unit, onAtalho: (AtalhoDeServidor) -> Unit
             }
             if (locais.isEmpty()) {
                 item { Vazio() }
-                item {
+                if (BuildConfig.DEMONSTRACAO) item {
                     Faixa(stringResource(R.string.demonstracao)) {
                         item {
                             CartaoVideo(
@@ -202,9 +218,11 @@ private fun CartaoVideo(
     capa: Int? = null,
     legenda: String? = null,
     volta: Int = 0,
+    onRemover: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     val contexto = LocalContext.current
+    var menu by remember { mutableStateOf(false) }
     val imagem by produceState<android.graphics.Bitmap?>(
         initialValue = Thumbnails.cached(item), key1 = item.id,
     ) {
@@ -218,7 +236,10 @@ private fun CartaoVideo(
                 .tvFocus()
                 .clip(RoundedCornerShape(14.dp))
                 .background(Color.White.copy(alpha = 0.06f))
-                .clickable(onClick = onClick),
+                .then(
+                    if (onRemover == null) Modifier.clickable(onClick = onClick)
+                    else Modifier.cliqueComOpcoes(onClick, onOpcoes = { menu = true })
+                ),
             contentAlignment = Alignment.Center,
         ) {
             val pronta = imagem
@@ -273,6 +294,15 @@ private fun CartaoVideo(
             fontSize = 12.sp,
             maxLines = 1,
         )
+    }
+
+    if (menu && onRemover != null) {
+        MenuDoItem(item.title, onFechar = { menu = false }) {
+            OpcaoDoMenu(stringResource(R.string.remover_do_inicio), Icons.Filled.Delete, primeira = true) {
+                menu = false
+                onRemover()
+            }
+        }
     }
 }
 
@@ -329,8 +359,9 @@ private fun Vazio() {
     Column(Modifier.fillMaxWidth().padding(horizontal = OVERSCAN_H, vertical = 20.dp)) {
         Text(stringResource(R.string.tv_sem_videos), color = LabTheme.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(6.dp))
+        val explica = stringResource(R.string.tv_sem_videos_explica)
         Text(
-            stringResource(R.string.tv_sem_videos_explica),
+            if (BuildConfig.DEMONSTRACAO) explica + " " + stringResource(R.string.tv_experimente_demo) else explica,
             color = LabTheme.muted,
             fontSize = 14.sp,
         )

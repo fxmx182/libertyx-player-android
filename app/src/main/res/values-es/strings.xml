@@ -82,7 +82,8 @@
     <string name="gerenciar_servidores">Administrar servidores</string>
     <string name="parou_em">te quedaste en %1$s</string>
     <string name="tv_sem_videos">No hay videos en este dispositivo</string>
-    <string name="tv_sem_videos_explica">En un TV box es lo normal. Los videos del dispositivo o de un pendrive aparecen aquí; para reproducir la colección de tu PC o NAS, conecta el servidor de casa arriba (no hace falta cuenta). O prueba la demostración de abajo.</string>
+    <string name="tv_sem_videos_explica">En un TV box es lo normal. Los videos del dispositivo o de un pendrive aparecen aquí; para reproducir la colección de tu PC o NAS, conecta el servidor de casa arriba (no hace falta cuenta).</string>
+    <string name="tv_experimente_demo">O prueba la demostración de abajo.</string>
     <string name="demonstracao">Demostración</string>
     <string name="demonstracao_tocar">Reproducir un video de demostración</string>
     <string name="pausado_temporizador">En pausa por el temporizador</string>
@@ -321,6 +322,8 @@
     <string name="conta_midia_explica">La contraseña solo sirve para entrar. La app guarda la clave de acceso que devuelve el servidor, cifrada en el dispositivo, y reproduce los archivos originales, sin conversión.</string>
     <string name="historico">Historial</string>
     <string name="remover_do_historico">Quitar del historial</string>
+    <string name="remover_do_inicio">Quitar del inicio</string>
+    <string name="ja_reproduzido">Ya reproducido</string>
     <string name="aba_inicio">Inicio</string>
     <string name="aba_arquivos">Archivos</string>
     <string name="aba_procurar">Buscar</string>

@@ -68,6 +68,14 @@ import com.mauricio.libertyx.library.Secao
 import com.mauricio.libertyx.library.rememberVoltaAoApp
 import com.mauricio.libertyx.player.Playback
 import com.mauricio.libertyx.tv.tvFocus
+import com.mauricio.libertyx.tv.cliqueComOpcoes
+import com.mauricio.libertyx.library.MenuDoItem
+import com.mauricio.libertyx.library.OpcaoDoMenu
+import com.mauricio.libertyx.core.ResumeStore
+import androidx.compose.runtime.mutableIntStateOf
+import android.widget.Toast
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -95,11 +103,24 @@ fun InicioDoServidor(conta: ContaDeRede, onAbrir: (Item) -> Unit) {
     val volta = rememberVoltaAoApp()
     var inicio by remember(conta.id) { mutableStateOf<Inicio?>(null) }
     var erro by remember(conta.id) { mutableStateOf<String?>(null) }
+    // Sobe quando um item é marcado ou desmarcado como visto.
+    var recarga by remember { mutableIntStateOf(0) }
+    var menuDe by remember { mutableStateOf<Item?>(null) }
+    // O cartão marcado como visto pode sair da faixa levando o foco junto, e
+    // a TV o largaria na seta de voltar. Ele vai para o primeiro cartão.
+    val topo = remember { FocusRequester() }
+    var refocar by remember { mutableStateOf(false) }
+    LaunchedEffect(inicio) {
+        if (refocar) {
+            refocar = false
+            runCatching { topo.requestFocus() }
+        }
+    }
 
     // De novo a cada volta do player: o filme que acabou de ser visto sai do
     // "Continuar", e o episódio seguinte entra no "A seguir". A tela antiga
     // fica enquanto a nova carrega, sem piscar.
-    LaunchedEffect(conta.id, volta) {
+    LaunchedEffect(conta.id, volta, recarga) {
         runCatching { carregar(servidor) }
             .onSuccess { inicio = it; erro = null }
             .onFailure { if (inicio == null) erro = it.message ?: it.javaClass.simpleName }
@@ -142,30 +163,87 @@ fun InicioDoServidor(conta: ContaDeRede, onAbrir: (Item) -> Unit) {
             else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 4.dp, bottom = 28.dp)) {
                 if (pronto.continuar.isNotEmpty()) item(key = "continuar") {
                     Faixa(stringResource(R.string.continuar_assistindo)) {
-                        items(pronto.continuar, key = { it.id }) { CartaoDeitado(servidor, it, abrir) }
+                        items(pronto.continuar, key = { it.id }) {
+                            CartaoDeitado(servidor, it, abrir, noTopo(it === pronto.continuar.first(), topo)) { menuDe = it }
+                        }
                     }
                 }
                 if (pronto.aSeguir.isNotEmpty()) item(key = "aSeguir") {
                     Faixa(stringResource(R.string.a_seguir)) {
-                        items(pronto.aSeguir, key = { it.id }) { CartaoDeitado(servidor, it, abrir) }
+                        items(pronto.aSeguir, key = { it.id }) {
+                            val primeiro = pronto.continuar.isEmpty() && it === pronto.aSeguir.first()
+                            CartaoDeitado(servidor, it, abrir, noTopo(primeiro, topo)) { menuDe = it }
+                        }
                     }
                 }
                 item(key = "bibliotecas") {
                     Faixa(stringResource(R.string.bibliotecas)) {
-                        items(pronto.bibliotecas, key = { it.id }) { CartaoDeBiblioteca(servidor, it, onAbrir) }
+                        items(pronto.bibliotecas, key = { it.id }) {
+                            val primeiro = pronto.continuar.isEmpty() && pronto.aSeguir.isEmpty() && it === pronto.bibliotecas.first()
+                            CartaoDeBiblioteca(servidor, it, onAbrir, noTopo(primeiro, topo))
+                        }
                     }
                 }
                 pronto.recentes.forEach { (biblioteca, itens) ->
                     item(key = "r" + biblioteca.id) {
                         Faixa(stringResource(R.string.recentes_em, biblioteca.nome), onTitulo = { onAbrir(biblioteca) }) {
-                            items(itens, key = { it.id }) { Cartaz(servidor, it, abrir) }
+                            items(itens, key = { it.id }) { Cartaz(servidor, it, abrir) { menuDe = it } }
                         }
                     }
                 }
             }
         }
     }
+
+    menuDe?.let { alvo ->
+        MenuDoVisto(servidor, conta, alvo, onFechar = { menuDe = null }, onMudou = { refocar = true; recarga++ })
+    }
 }
+
+/**
+ * Segurar um vídeo, uma série ou uma temporada do Jellyfin ou do Emby: a
+ * caixinha "Já reproduzido", como no app do servidor. A marca muda na hora;
+ * o diálogo fecha quando o servidor confirma, e ela volta atrás se ele recusar.
+ */
+@Composable
+internal fun MenuDoVisto(
+    servidor: ServidorDeMidia,
+    conta: ContaDeRede,
+    item: Item,
+    onFechar: () -> Unit,
+    onMudou: () -> Unit,
+) {
+    val contexto = LocalContext.current
+    val escopo = rememberCoroutineScope()
+    var visto by remember(item.id) { mutableStateOf(item.visto) }
+    var enviando by remember(item.id) { mutableStateOf(false) }
+    MenuDoItem(item.titulo, onFechar) {
+        OpcaoDoMenu(stringResource(R.string.ja_reproduzido), marcado = visto, primeira = true) {
+            if (enviando) return@OpcaoDoMenu
+            enviando = true
+            val novo = !visto
+            visto = novo
+            escopo.launch {
+                runCatching { servidor.marcarVisto(item.id, novo) }
+                    .onSuccess {
+                        // O servidor zera onde parou nos dois sentidos; a marca
+                        // daqui segue, ou o cartão voltaria com a barrinha.
+                        ResumeStore.get(contexto).clear(MediaOrigin.Midia(conta.id, item.id).resumeKey)
+                        onMudou()
+                        onFechar()
+                    }
+                    .onFailure {
+                        visto = !novo
+                        enviando = false
+                        Toast.makeText(contexto, it.message ?: it.javaClass.simpleName, Toast.LENGTH_LONG).show()
+                    }
+            }
+        }
+    }
+}
+
+private fun noTopo(primeiro: Boolean, topo: FocusRequester): Modifier =
+    if (primeiro) Modifier.focusRequester(topo) else Modifier
 
 private class Inicio(
     val continuar: List<Item>,
@@ -238,9 +316,18 @@ private fun Faixa(titulo: String, onTitulo: (() -> Unit)? = null, conteudo: Lazy
 
 /** "Continuar" e "A seguir": a cena deitada, com o quanto falta. */
 @Composable
-private fun CartaoDeitado(servidor: ServidorDeMidia, item: Item, onClick: (Item) -> Unit) {
+private fun CartaoDeitado(
+    servidor: ServidorDeMidia,
+    item: Item,
+    onClick: (Item) -> Unit,
+    modifier: Modifier = Modifier,
+    onOpcoes: (Item) -> Unit,
+) {
     val forma = RoundedCornerShape(12.dp)
-    Column(Modifier.width(236.dp * Escala.fator()).tvFocus(12.dp).clickable { onClick(item) }) {
+    Column(
+        modifier.width(236.dp * Escala.fator()).tvFocus(12.dp)
+            .cliqueComOpcoes(onClick = { onClick(item) }, onOpcoes = { onOpcoes(item) }),
+    ) {
         Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(forma).border(0.5.dp, LabTheme.glassBorder, forma)) {
             // O "Primary" do episódio já é uma cena; o do filme é o cartaz em pé.
             val tipos = if (item.tipo == "Episode") listOf("Primary", "Thumb") else listOf("Thumb", "Backdrop", "Primary")
@@ -271,9 +358,12 @@ private fun numeroDoEpisodio(item: Item): String? {
 
 /** "Recentes": o cartaz em pé, com os episódios por ver ou a marca de visto. */
 @Composable
-private fun Cartaz(servidor: ServidorDeMidia, item: Item, onClick: (Item) -> Unit) {
+private fun Cartaz(servidor: ServidorDeMidia, item: Item, onClick: (Item) -> Unit, onOpcoes: (Item) -> Unit) {
     val forma = RoundedCornerShape(10.dp)
-    Column(Modifier.width(112.dp * Escala.fator()).tvFocus(10.dp).clickable { onClick(item) }) {
+    Column(
+        Modifier.width(112.dp * Escala.fator()).tvFocus(10.dp)
+            .cliqueComOpcoes(onClick = { onClick(item) }, onOpcoes = { onOpcoes(item) }),
+    ) {
         Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(forma).border(0.5.dp, LabTheme.glassBorder, forma)) {
             // Episódio solto mostra o cartaz da série: a cena dele, cortada em
             // pé, não diria de onde ele é.
@@ -303,9 +393,9 @@ private fun Cartaz(servidor: ServidorDeMidia, item: Item, onClick: (Item) -> Uni
 }
 
 @Composable
-private fun CartaoDeBiblioteca(servidor: ServidorDeMidia, biblioteca: Item, onClick: (Item) -> Unit) {
+private fun CartaoDeBiblioteca(servidor: ServidorDeMidia, biblioteca: Item, onClick: (Item) -> Unit, modifier: Modifier = Modifier) {
     val forma = RoundedCornerShape(12.dp)
-    Column(Modifier.width(176.dp * Escala.fator()).tvFocus(12.dp).clickable { onClick(biblioteca) }) {
+    Column(modifier.width(176.dp * Escala.fator()).tvFocus(12.dp).clickable { onClick(biblioteca) }) {
         Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(forma).border(0.5.dp, LabTheme.glassBorder, forma)) {
             ImagemDoServidor(servidor, biblioteca.id, listOf("Primary"), 400, Modifier.fillMaxSize())
         }
