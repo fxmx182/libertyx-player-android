@@ -423,6 +423,95 @@ private fun BoxScope.Progresso(progresso: Float?) {
 }
 
 /**
+ * Série, temporada ou coleção dentro de uma biblioteca: a capa deitada, como
+ * no app do servidor e no do computador. Antes era uma linha com um ícone de
+ * pasta, e uma biblioteca de séries virava uma lista de nomes sem rosto.
+ *
+ * O selo diz quantos episódios faltam ver; o visto, quando não falta nenhum.
+ * Segurar abre o "Já reproduzido", que numa série vale para todos os episódios.
+ */
+@Composable
+internal fun CapaDePastaDoServidor(
+    servidor: ServidorDeMidia,
+    item: Item,
+    onClick: () -> Unit,
+    onOpcoes: () -> Unit,
+) {
+    val forma = RoundedCornerShape(12.dp)
+    Column(Modifier.fillMaxWidth().tvFocus(12.dp).cliqueComOpcoes(onClick, onOpcoes)) {
+        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(forma).border(0.5.dp, LabTheme.glassBorder, forma)) {
+            ImagemDoServidor(
+                servidor, idDaCapa(item), listOf("Thumb", "Backdrop", "Primary"), 480, Modifier.fillMaxSize(),
+                if (item.tipo == "Series" || item.tipo == "Season") Icons.Filled.Tv else Icons.Filled.Movie,
+            )
+            SeloDeVistos(item, Modifier.align(Alignment.BottomEnd).padding(7.dp))
+        }
+        Spacer(Modifier.height(7.dp))
+        Text(
+            item.nome, color = LabTheme.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+            maxLines = 1, overflow = TextOverflow.Ellipsis,
+        )
+        Text(item.ano?.toString() ?: " ", color = LabTheme.muted, fontSize = 11.sp, maxLines = 1)
+    }
+}
+
+/** A mesma capa, pequena, na linha da lista — para quem prefere a pasta em lista. */
+@Composable
+internal fun LinhaDePastaDoServidor(
+    servidor: ServidorDeMidia,
+    item: Item,
+    onClick: () -> Unit,
+    onOpcoes: () -> Unit,
+) {
+    val forma = RoundedCornerShape(10.dp)
+    Row(
+        Modifier.fillMaxWidth().tvFocus(LabTheme.radiusSmall, scale = 1.02f)
+            .clip(RoundedCornerShape(LabTheme.radiusSmall))
+            .cliqueComOpcoes(onClick, onOpcoes)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.width(124.dp * Escala.fator()).aspectRatio(16f / 9f).clip(forma).border(0.5.dp, LabTheme.glassBorder, forma)) {
+            ImagemDoServidor(
+                servidor, idDaCapa(item), listOf("Thumb", "Backdrop", "Primary"), 320, Modifier.fillMaxSize(),
+                if (item.tipo == "Series" || item.tipo == "Season") Icons.Filled.Tv else Icons.Filled.Movie,
+            )
+            SeloDeVistos(item, Modifier.align(Alignment.BottomEnd).padding(5.dp))
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                item.nome, color = LabTheme.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                maxLines = 2, overflow = TextOverflow.Ellipsis,
+            )
+            item.ano?.let { Text(it.toString(), color = LabTheme.muted, fontSize = 11.sp) }
+        }
+    }
+}
+
+/**
+ * A temporada quase nunca tem cena deitada própria, só o cartaz em pé — que
+ * cortado em 16:9 vira um retalho. A da série serve a todas as temporadas.
+ */
+private fun idDaCapa(item: Item): String =
+    if (item.tipo == "Season") item.serieId ?: item.id else item.id
+
+@Composable
+private fun SeloDeVistos(item: Item, modifier: Modifier) {
+    when {
+        item.naoVistos != null -> Text(
+            item.naoVistos.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+            modifier = modifier.clip(RoundedCornerShape(20.dp)).background(Color.Black.copy(alpha = 0.72f))
+                .padding(horizontal = 7.dp, vertical = 2.dp),
+        )
+        item.visto -> Icon(
+            Icons.Filled.Check, null, tint = Color.Black,
+            modifier = modifier.size(20.dp).clip(CircleShape).background(LabTheme.accent).padding(3.dp),
+        )
+    }
+}
+
+/**
  * Cartazes e cenas que o servidor já tem prontos — diferente das miniaturas
  * das pastas, aqui não há quadro a tirar do vídeo, só a imagem a baixar.
  */
@@ -435,7 +524,7 @@ private object CapasDoServidor {
 }
 
 @Composable
-private fun ImagemDoServidor(
+internal fun ImagemDoServidor(
     servidor: ServidorDeMidia,
     id: String,
     tipos: List<String>,

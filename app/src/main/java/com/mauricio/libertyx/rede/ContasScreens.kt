@@ -428,6 +428,10 @@ fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit) {
     var conteudo by remember { mutableStateOf<Conteudo?>(null) }
     var erro by remember { mutableStateOf<String?>(null) }
     var menuDe by remember { mutableStateOf<ServidorDeMidia.Item?>(null) }
+    // Jellyfin e Emby: as séries e temporadas ganham capa (ver `CapaDePastaDoServidor`).
+    val servidorDaConta = remember(conta.id) {
+        if (conta.tipo == ContaDeRede.Tipo.WEBDAV) null else ServidorDeMidia(conta, loja.segredo(conta))
+    }
     // Sobe quando um vídeo é marcado como visto: a pasta se relê por baixo,
     // sem apagar a tela, e as barrinhas de onde parou se refazem.
     var recarga by remember { mutableIntStateOf(0) }
@@ -505,6 +509,8 @@ fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit) {
                         onAbrir = { pilha = pilha + it },
                         onOpcoes = { mostrandoOpcoes = true },
                         onMenu = { video -> pronto.doServidor[video.id]?.let { menuDe = it } },
+                        servidor = servidorDaConta,
+                        onMenuDaPasta = { menuDe = it },
                     )
                 }
             }
@@ -512,7 +518,7 @@ fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit) {
     }
 
     menuDe?.let { alvo ->
-        val servidor = remember(conta.id) { ServidorDeMidia(conta, loja.segredo(conta)) }
+        val servidor = servidorDaConta ?: return@let
         MenuDoVisto(servidor, conta, alvo, onFechar = { menuDe = null }) {
             recarga++
             escopo.launch {
@@ -600,6 +606,8 @@ private fun Pasta(
     onAbrir: (Nivel) -> Unit,
     onOpcoes: () -> Unit,
     onMenu: (MediaItem) -> Unit,
+    servidor: ServidorDeMidia?,
+    onMenuDaPasta: (ServidorDeMidia.Item) -> Unit,
 ) {
     val contexto = LocalContext.current
     // A fila de reprodução segue a ordem da tela: "próximo" vai para o vídeo
@@ -629,8 +637,17 @@ private fun Pasta(
             if (naTv) {
                 item(key = "opcoes", span = { GridItemSpan(maxLineSpan) }) { LinhaDeOpcoes(onOpcoes) }
             }
-            items(conteudo.pastas, key = { it.first.hashCode() }, span = { GridItemSpan(maxLineSpan) }) { (nivel, icone) ->
-                LinhaDePasta(nivel.nome, icone) { onAbrir(nivel) }
+            items(
+                conteudo.pastas, key = { it.first.hashCode() },
+                span = { (nivel, _) -> if (servidor != null && nivel is Nivel.Item) GridItemSpan(1) else GridItemSpan(maxLineSpan) },
+            ) { (nivel, icone) ->
+                if (servidor != null && nivel is Nivel.Item) {
+                    Box(Modifier.padding(bottom = 8.dp)) {
+                        CapaDePastaDoServidor(servidor, nivel.item, { onAbrir(nivel) }, { onMenuDaPasta(nivel.item) })
+                    }
+                } else {
+                    LinhaDePasta(nivel.nome, icone) { onAbrir(nivel) }
+                }
             }
             items(videos, key = { it.id }) { item ->
                 Box(Modifier.padding(bottom = 8.dp)) {
@@ -645,7 +662,11 @@ private fun Pasta(
             }
             items(conteudo.pastas, key = { it.first.hashCode() }) { (nivel, icone) ->
                 Box(Modifier.padding(horizontal = 12.dp)) {
-                    LinhaDePasta(nivel.nome, icone) { onAbrir(nivel) }
+                    if (servidor != null && nivel is Nivel.Item) {
+                        LinhaDePastaDoServidor(servidor, nivel.item, { onAbrir(nivel) }, { onMenuDaPasta(nivel.item) })
+                    } else {
+                        LinhaDePasta(nivel.nome, icone) { onAbrir(nivel) }
+                    }
                 }
             }
             items(videos, key = { it.id }) { item ->
