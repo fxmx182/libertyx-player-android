@@ -98,6 +98,7 @@ import com.mauricio.libertyx.tv.setasTrocamDeCampo
 import com.mauricio.libertyx.tv.tvFocus
 import com.mauricio.libertyx.tv.RolagemDeTvNasBordas
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 
 val ContaDeRede.Tipo.icone: ImageVector
     get() = when (this) {
@@ -445,7 +446,11 @@ fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit) {
         if (atual is Nivel.Bibliotecas) return@LaunchedEffect
         runCatching { ler(conta, loja.segredo(conta), atual) }
             .onSuccess { conteudo = it }
-            .onFailure { erro = it.message ?: it.javaClass.simpleName }
+            .onFailure {
+                // Cancelada não é falha: trocou de pasta no meio da leitura.
+                if (it is CancellationException) throw it
+                erro = it.message ?: it.javaClass.simpleName
+            }
     }
 
     // Voltar sobe um nível antes de sair da tela.

@@ -82,6 +82,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.util.concurrent.ConcurrentHashMap
@@ -125,7 +126,13 @@ fun InicioDoServidor(conta: ContaDeRede, onAbrir: (Item) -> Unit) {
     LaunchedEffect(conta.id, volta, recarga) {
         runCatching { carregar(servidor) }
             .onSuccess { inicio = it; erro = null }
-            .onFailure { if (inicio == null) erro = it.message ?: it.javaClass.simpleName }
+            .onFailure {
+                // Cancelada não é falha: a tela recarregou (ou saiu) no meio da
+                // leitura. Tratada como erro, ela aparecia por um segundo como
+                // "The coroutine scope left the composition" ao entrar.
+                if (it is CancellationException) throw it
+                if (inicio == null) erro = it.message ?: it.javaClass.simpleName
+            }
     }
 
     val escopo = rememberCoroutineScope()
@@ -236,6 +243,7 @@ internal fun MenuDoVisto(
                         onFechar()
                     }
                     .onFailure {
+                        if (it is CancellationException) throw it
                         visto = !novo
                         enviando = false
                         Toast.makeText(contexto, it.message ?: it.javaClass.simpleName, Toast.LENGTH_LONG).show()
