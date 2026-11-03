@@ -175,6 +175,41 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
     }
 
     /**
+     * As legendas "externas" do vídeo: os `.srt` que o servidor achou ao lado
+     * do arquivo, na pasta dele. As de dentro do arquivo o VLC já lê; estas
+     * ele não vê, porque recebe só o vídeo.
+     *
+     * Cada uma como (nome do arquivo, texto). O nome leva o título que o
+     * servidor dá à faixa — e "forced" quando ela é marcada como forçada, que
+     * é como a regra da legenda a reconhece.
+     */
+    suspend fun legendasExternas(itemId: String): List<Pair<String, String>> {
+        val json = pedir("/Users/$usuarioId/Items/$itemId", listOf("Fields" to "MediaSources,MediaStreams"))
+        val fonte = json.optJSONArray("MediaSources")?.optJSONObject(0) ?: return emptyList()
+        val fonteId = fonte.optString("Id").ifEmpty { itemId }
+        val fluxos = fonte.optJSONArray("MediaStreams") ?: return emptyList()
+        return (0 until fluxos.length()).mapNotNull { fluxos.optJSONObject(it) }
+            .filter { it.optString("Type") == "Subtitle" && it.optBoolean("IsExternal") }
+            .mapNotNull { fluxo ->
+                val indice = fluxo.optInt("Index", -1).takeIf { it >= 0 } ?: return@mapNotNull null
+                // O servidor converte qualquer legenda de texto para SRT; ASS
+                // vem como ASS, para não perder cor e posição.
+                val formato = when (fluxo.optString("Codec").lowercase()) {
+                    "ass" -> "ass"
+                    "ssa" -> "ssa"
+                    else -> "srt"
+                }
+                val texto = runCatching {
+                    pedirTexto("/Videos/$itemId/$fonteId/Subtitles/$indice/0/Stream.$formato", emptyList(), null)
+                }.getOrNull()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                var titulo = fluxo.optString("DisplayTitle").ifEmpty { fluxo.optString("Language") }.ifEmpty { "Legenda" }
+                if (fluxo.optBoolean("IsForced") && !titulo.contains("forced", ignoreCase = true)) titulo += " forced"
+                // O índice no nome: duas faixas com o mesmo título não se sobrescrevem.
+                "${titulo.replace(Regex("[\\\\/:*?\"<>|]"), "_")} ($indice).$formato" to texto
+            }
+    }
+
+    /**
      * Conta ao servidor o que está tocando, para o "Continuar assistindo" e o
      * "visto" valerem também no app dele, na TV e no navegador.
      *

@@ -1,5 +1,6 @@
 package com.mauricio.libertyx.rede
 
+import java.io.File
 import android.net.Uri
 import android.util.Base64
 import com.mauricio.libertyx.R
@@ -72,6 +73,19 @@ class WebDav(private val conta: ContaDeRede, private val senha: String?) {
                 if (nome.isEmpty() || nome.startsWith(".")) return@mapNotNull null
                 Entrada(nome, c, bruta.ehPasta, bruta.tamanho, bruta.modificado)
             }
+        }
+    }
+
+    /** Copia um arquivo do servidor para [destino] — as legendas ao lado do vídeo. */
+    suspend fun baixar(caminho: String, destino: File) = withContext(Dispatchers.IO) {
+        val url = url(caminho, pasta = false) ?: throw ErroDeServidor(Textos.get(R.string.erro_endereco_invalido))
+        val pedido = Request.Builder().url(url.toString())
+            .apply { autorizacao?.let { header("Authorization", it) } }
+            .build()
+        ContasDeRede.http.newCall(pedido).execute().use { resposta ->
+            if (!resposta.isSuccessful) throw ErroDeServidor.http(resposta.code)
+            val corpo = resposta.body ?: throw ErroDeServidor.http(resposta.code)
+            destino.outputStream().use { corpo.byteStream().copyTo(it) }
         }
     }
 

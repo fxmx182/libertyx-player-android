@@ -1,7 +1,10 @@
 package com.mauricio.libertyx.smb
 
 import android.util.Log
+import com.hierynomus.msdtyp.AccessMask
+import com.hierynomus.mssmb2.SMB2CreateDisposition
 import com.hierynomus.mssmb2.SMB2Dialect
+import com.hierynomus.mssmb2.SMB2ShareAccess
 import com.hierynomus.security.bc.BCSecurityProvider
 import com.hierynomus.smbj.SMBClient
 import com.hierynomus.smbj.SmbConfig
@@ -12,6 +15,7 @@ import com.hierynomus.smbj.session.Session
 import com.hierynomus.smbj.share.DiskShare
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 /**
@@ -61,17 +65,12 @@ object SmbMetadados {
     suspend fun listar(server: SmbServer, senha: String?, share: String, pasta: String): Map<String, Info>? =
         runInterruptible(Dispatchers.IO) {
             try {
-                // Usuário em branco é convidado para o servidor, marcado ou não.
-                if (!server.isGuest && server.username.isNotBlank()) {
-                    // O mesmo grupo de trabalho que o VLC recebe — ver SmbBrowser.credenciais.
-                    val conta = AuthenticationContext(server.username, (senha ?: "").toCharArray(), "WORKGROUP")
-                    ler(cliente, server, share, pasta, conta)
-                } else {
-                    // Há Samba que só aceita "guest" e há o que só aceita anônimo.
-                    runCatching { ler(cliente, server, share, pasta, AuthenticationContext.guest()) }
-                        .recoverCatching { ler(clienteSemSmb3, server, share, pasta, AuthenticationContext.guest()) }
-                        .recoverCatching { ler(clienteSemSmb3, server, share, pasta, AuthenticationContext.anonymous()) }
-                        .getOrThrow()
+                noDisco(server, senha, share) { disco ->
+                    disco.list(pasta.replace('/', '\\'))
+                        .filter { it.fileName != "." && it.fileName != ".." }
+                        .associate { info ->
+                            info.fileName to Info(info.endOfFile, info.lastWriteTime.toEpochMillis())
+                        }
                 }
             } catch (e: InterruptedException) {
                 throw e
@@ -81,22 +80,70 @@ object SmbMetadados {
             }
         }
 
-    private fun ler(
+    /**
+     * Copia para [destino] os arquivos pequenos da pasta cujo nome passa em
+     * [quais] — as legendas ao lado do vídeo. Como na listagem, quem toca é o
+     * VLC; este cliente só traz o que ele não enxerga. Falhando, devolve vazio.
+     */
+    suspend fun baixar(
+        server: SmbServer,
+        senha: String?,
+        share: String,
+        pasta: String,
+        destino: File,
+        teto: Long,
+        quais: (String) -> Boolean,
+    ): List<File> = runInterruptible(Dispatchers.IO) {
+        try {
+            noDisco(server, senha, share) { disco ->
+                val dir = pasta.replace('/', '\\')
+                disco.list(dir)
+                    .filter { quais(it.fileName) && it.endOfFile <= teto }
+                    .map { info ->
+                        val caminho = if (dir.isEmpty()) info.fileName else "$dir\\${info.fileName}"
+                        disco.openFile(
+                            caminho, setOf(AccessMask.GENERIC_READ), null, SMB2ShareAccess.ALL,
+                            SMB2CreateDisposition.FILE_OPEN, null,
+                        ).use { arquivo ->
+                            File(destino, info.fileName).also { saida ->
+                                arquivo.inputStream.use { entrada -> saida.outputStream().use { entrada.copyTo(it) } }
+                            }
+                        }
+                    }
+            }
+        } catch (e: InterruptedException) {
+            throw e
+        } catch (e: Throwable) {
+            Log.w(TAG, "legendas ao lado indisponíveis em ${server.displayHost}/$share: $e")
+            emptyList()
+        }
+    }
+
+    /** Abre o compartilhamento com a conta certa e entrega o disco a [trabalho]. */
+    private fun <T> noDisco(server: SmbServer, senha: String?, share: String, trabalho: (DiskShare) -> T): T {
+        // Usuário em branco é convidado para o servidor, marcado ou não.
+        if (!server.isGuest && server.username.isNotBlank()) {
+            // O mesmo grupo de trabalho que o VLC recebe — ver SmbBrowser.credenciais.
+            val conta = AuthenticationContext(server.username, (senha ?: "").toCharArray(), "WORKGROUP")
+            return abrir(cliente, server, share, conta, trabalho)
+        }
+        // Há Samba que só aceita "guest" e há o que só aceita anônimo.
+        return runCatching { abrir(cliente, server, share, AuthenticationContext.guest(), trabalho) }
+            .recoverCatching { abrir(clienteSemSmb3, server, share, AuthenticationContext.guest(), trabalho) }
+            .recoverCatching { abrir(clienteSemSmb3, server, share, AuthenticationContext.anonymous(), trabalho) }
+            .getOrThrow()
+    }
+
+    private fun <T> abrir(
         cliente: SMBClient,
         server: SmbServer,
         share: String,
-        pasta: String,
         conta: AuthenticationContext,
-    ): Map<String, Info> =
+        trabalho: (DiskShare) -> T,
+    ): T =
         cliente.connect(server.host, server.port).use { conexao: Connection ->
             conexao.authenticate(conta).use { sessao: Session ->
-                (sessao.connectShare(share) as DiskShare).use { disco ->
-                    disco.list(pasta.replace('/', '\\'))
-                        .filter { it.fileName != "." && it.fileName != ".." }
-                        .associate { info ->
-                            info.fileName to Info(info.endOfFile, info.lastWriteTime.toEpochMillis())
-                        }
-                }
+                (sessao.connectShare(share) as DiskShare).use(trabalho)
             }
         }
 }

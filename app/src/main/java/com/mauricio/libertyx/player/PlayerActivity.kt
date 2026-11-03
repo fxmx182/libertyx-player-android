@@ -1,5 +1,10 @@
 package com.mauricio.libertyx.player
 
+import android.net.Uri
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.Job
 import android.app.Activity
 import android.app.AlertDialog
 import android.app.Dialog
@@ -101,6 +106,10 @@ class PlayerActivity : Activity() {
     private lateinit var audio: AudioManager
     private lateinit var resume: ResumeStore
     private val aviso by lazy { AvisoAoServidor(this) }
+
+    /** O que roda fora da tela enquanto o player está aberto: hoje, as legendas ao lado. */
+    private val escopo = MainScope()
+    private var buscaDeLegendas: Job? = null
 
     private val main = Handler(Looper.getMainLooper())
 
@@ -317,6 +326,7 @@ class PlayerActivity : Activity() {
         super.onDestroy()
         com.mauricio.libertyx.library.Thumbnails.pausar(false)
         main.removeCallbacksAndMessages(null)
+        escopo.cancel()
         if (::engine.isInitialized) {
             encerrar(engine.currentTime)
             engine.detach()
@@ -527,6 +537,7 @@ class PlayerActivity : Activity() {
             presentError(it.message ?: getString(R.string.erro_abrir_curto))
             return
         }
+        buscarLegendasAoLado(alvo)
 
         // Retomar é pergunta, não regra: às vezes se quer rever o filme desde o
         // começo, e voltar sozinho ao meio obriga a desfazer na mão toda vez.
@@ -538,6 +549,22 @@ class PlayerActivity : Activity() {
             if (retomada != null) pendingResume = retomada
             engine.play()
             scheduleControlsHide()
+        }
+    }
+
+    /**
+     * As legendas em arquivo próprio ao lado do vídeo (ver [LegendasAoLado]).
+     * Chegam depois de o vídeo já estar tocando — buscar antes atrasaria a
+     * abertura por uma ida ao servidor — e entram sem ser ligadas: quem
+     * decide qual fica ligada é a regra da legenda forçada.
+     */
+    private fun buscarLegendasAoLado(alvo: MediaItem) {
+        buscaDeLegendas?.cancel()
+        buscaDeLegendas = escopo.launch {
+            val arquivos = LegendasAoLado.buscar(applicationContext, alvo.origin)
+            // Trocou de vídeo enquanto baixava: estas eram do anterior.
+            if (item?.origin != alvo.origin) return@launch
+            arquivos.forEach { engine.addSubtitle(Uri.fromFile(it), selecionar = false) }
         }
     }
 
