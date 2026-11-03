@@ -69,6 +69,7 @@ import com.mauricio.libertyx.library.rememberVoltaAoApp
 import com.mauricio.libertyx.player.Playback
 import com.mauricio.libertyx.tv.tvFocus
 import com.mauricio.libertyx.tv.cliqueComOpcoes
+import com.mauricio.libertyx.tv.RolagemDeTv
 import com.mauricio.libertyx.library.MenuDoItem
 import com.mauricio.libertyx.library.OpcaoDoMenu
 import com.mauricio.libertyx.core.ResumeStore
@@ -160,7 +161,8 @@ fun InicioDoServidor(conta: ContaDeRede, onAbrir: (Item) -> Unit) {
                 stringResource(R.string.pasta_vazia), color = LabTheme.muted,
                 modifier = Modifier.align(Alignment.Center),
             )
-            else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 4.dp, bottom = 28.dp)) {
+            // Na TV a faixa focada sobe para o alto, logo abaixo do título dela.
+            else -> RolagemDeTv(inicio = 52.dp) { LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 4.dp, bottom = 28.dp)) {
                 if (pronto.continuar.isNotEmpty()) item(key = "continuar") {
                     Faixa(stringResource(R.string.continuar_assistindo)) {
                         items(pronto.continuar, key = { it.id }) {
@@ -191,7 +193,7 @@ fun InicioDoServidor(conta: ContaDeRede, onAbrir: (Item) -> Unit) {
                         }
                     }
                 }
-            }
+            } }
         }
     }
 
@@ -306,11 +308,13 @@ private fun Faixa(titulo: String, onTitulo: (() -> Unit)? = null, conteudo: Lazy
                 )
             }
         }
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            content = conteudo,
-        )
+        RolagemDeTv(inicio = 16.dp) {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                content = conteudo,
+            )
+        }
     }
 }
 

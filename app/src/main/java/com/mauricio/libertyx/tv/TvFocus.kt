@@ -7,7 +7,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import com.mauricio.libertyx.core.Device
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -114,3 +120,34 @@ fun Modifier.cliqueComOpcoes(onClick: () -> Unit, onOpcoes: () -> Unit): Modifie
         if (evento.type == KeyEventType.KeyUp) onOpcoes()
         true
     }.combinedClickable(onClick = onClick, onLongClick = onOpcoes)
+
+/**
+ * A rolagem das faixas na TV: o foco fica num lugar fixo e a faixa desliza
+ * por baixo dele, como no app do Jellyfin e na tela inicial do Google TV.
+ *
+ * A rolagem padrão anda só o mínimo para o item focado caber — e o cartão
+ * focado cresce (ver [tvFocus]), então a cada clique a faixa ajustava uns
+ * pixels, e a lista de faixas também, para caber o cartão maior: as fileiras
+ * davam saltinhos sozinhas. Com o lugar fixo, cada clique move exatamente um
+ * cartão, e mover para o lado não mexe nada na vertical.
+ *
+ * [inicio] é onde o foco para, contado do começo da área visível. Vale para
+ * a rolagem que estiver logo dentro; uma faixa dentro de uma lista declara a
+ * sua. No celular não muda nada: o dedo rola, e foco não há.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun RolagemDeTv(inicio: Dp, conteudo: @Composable () -> Unit) {
+    if (!Device.isTv(LocalContext.current)) {
+        conteudo()
+        return
+    }
+    val px = with(LocalDensity.current) { inicio.toPx() }
+    val regra = remember(px) {
+        object : BringIntoViewSpec {
+            override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float =
+                offset - px
+        }
+    }
+    CompositionLocalProvider(LocalBringIntoViewSpec provides regra, content = conteudo)
+}
