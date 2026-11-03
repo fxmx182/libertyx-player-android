@@ -959,6 +959,17 @@ class PlayerActivity : Activity() {
         // sobre o botão.
         ui.seekBar.isFocusable = true
         ui.btnPlay.isFocusableInTouchMode = false
+        // Subir de qualquer botão de baixo cai na barra, e descer dela volta ao
+        // play. Pela geometria o Android escolhia o botão mais perto na
+        // diagonal — do play subia para a legenda —, e a barra ficava fora de
+        // alcance: para quem segura o controle, buscar pela barra "não
+        // funcionava".
+        fun subirParaABarra(vista: View) {
+            vista.nextFocusUpId = R.id.seek_bar
+            if (vista is ViewGroup) for (i in 0 until vista.childCount) subirParaABarra(vista.getChildAt(i))
+        }
+        listOf(ui.btnPlay, ui.btnAspect).mapNotNull { it.parent as? View }.distinct().forEach(::subirParaABarra)
+        ui.seekBar.nextFocusDownId = R.id.btn_play
     }
 
     /**
@@ -996,6 +1007,16 @@ class PlayerActivity : Activity() {
             return true
         }
 
+        // Na barra de progresso focada, as setas andam no filme pelo mesmo
+        // caminho de quando a barra está escondida — o do próprio SeekBar
+        // pulava 5% do filme por toque e nunca confirmava a busca.
+        if (controlsVisible && currentFocus === ui.seekBar &&
+            (event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
+        ) {
+            buscaDoControle(event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT, event.repeatCount)
+            return true
+        }
+
         // Com os controles na tela, o foco é quem manda: as setas percorrem os
         // botões e o centro aciona o que estiver focado.
         if (controlsVisible) {
@@ -1004,8 +1025,8 @@ class PlayerActivity : Activity() {
         }
 
         when (event.keyCode) {
-            KeyEvent.KEYCODE_DPAD_LEFT -> { jump(-Tuning.DOUBLE_TAP_SECONDS); return true }
-            KeyEvent.KEYCODE_DPAD_RIGHT -> { jump(Tuning.DOUBLE_TAP_SECONDS); return true }
+            KeyEvent.KEYCODE_DPAD_LEFT -> { buscaDoControle(false, event.repeatCount); return true }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> { buscaDoControle(true, event.repeatCount); return true }
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_BUTTON_A -> {
                 togglePlayPause()
                 mostrarControlesComFoco()
@@ -1017,6 +1038,60 @@ class PlayerActivity : Activity() {
             }
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    // MARK: - Busca pelo controle remoto
+
+    /** Para onde as setas já levaram, ainda sem buscar; `null` fora de uma busca. */
+    private var alvoDoControle: Double? = null
+    private val confirmarBuscaDoControle = Runnable {
+        val alvo = alvoDoControle ?: return@Runnable
+        alvoDoControle = null
+        isBarScrubbing = false
+        engine.seek(alvo, precise = false)
+        hideHudAfter(700)
+        if (controlsVisible) scheduleControlsHide()
+    }
+
+    /**
+     * As setas do controle andam no filme como no Jellyfin e no YouTube da TV:
+     * cada toque soma ao destino, que aparece na tela, e o vídeo vai até lá de
+     * uma vez só, quando as setas param.
+     *
+     * Antes cada toque era uma busca. Dez toques seguidos eram dez buscas, e o
+     * VLC abortava uma para começar a outra — no servidor, a imagem congelava e
+     * pulava aos trancos. Segurar a seta acelera: dez segundos por toque,
+     * depois meio minuto, depois um minuto por repetição do controle, para que
+     * atravessar um filme de duas horas leve segundos e não minutos.
+     */
+    private fun buscaDoControle(frente: Boolean, repeticao: Int) {
+        val duracao = engine.duration
+        if (duracao <= 0) return
+        val passo = when {
+            repeticao == 0 -> Tuning.DOUBLE_TAP_SECONDS
+            repeticao < 20 -> 3.0
+            repeticao < 60 -> 10.0
+            else -> 30.0
+        }
+        val base = alvoDoControle ?: engine.currentTime
+        val alvo = (base + if (frente) passo else -passo).coerceIn(0.0, duracao)
+        alvoDoControle = alvo
+        isBarScrubbing = true
+
+        val delta = alvo - engine.currentTime
+        val sinal = if (delta >= 0) "+" else "−"
+        if (controlsVisible) {
+            cancelControlsHide()
+            ui.seekBar.progress = (alvo / duracao * ui.seekBar.max).toInt()
+            ui.tvPosition.text = TimeFormat.clock(alvo)
+        } else {
+            ui.hudIcon.visibility = View.GONE
+            showHud(TimeFormat.clock(alvo), getString(R.string.salto_s, sinal, abs(delta).roundToInt()),
+                (alvo / duracao * 100).toInt())
+            main.removeCallbacks(hideHudRunnable)
+        }
+        main.removeCallbacks(confirmarBuscaDoControle)
+        main.postDelayed(confirmarBuscaDoControle, 650)
     }
 
     /**
@@ -1784,6 +1859,18 @@ class PlayerActivity : Activity() {
         val itens = buildList {
             add(Ferramenta(getString(R.string.t_faixa_audio), R.drawable.ic_audio_track) { showTracks(audio = true) })
             add(Ferramenta(getString(R.string.t_legenda), R.drawable.ic_subtitle) { showTracks(audio = false) })
+            val atraso = engine.subtitleDelay
+            add(
+                Ferramenta(
+                    getString(R.string.t_atraso_legenda), R.drawable.ic_subtitle,
+                    valor = if (abs(atraso) >= 0.05) atrasoEmTexto(atraso) else null,
+                    aceso = abs(atraso) >= 0.05,
+                ) {
+                    // Depois de o painel terminar de fechar: o fechamento dele
+                    // devolve os controles à tela, e a barra os quer fora.
+                    ui.root.post { showSubtitleDelay() }
+                }
+            )
             add(Ferramenta(getString(R.string.t_proporcao), R.drawable.ic_aspect) { cycleAspect() })
             add(
                 Ferramenta(
@@ -1972,6 +2059,77 @@ class PlayerActivity : Activity() {
         }
         painel.show()
         painel.window?.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+    }
+
+    /** "+1,5 s", "−0,3 s", "0 s": o sinal sempre à mostra, que é o que diz o sentido. */
+    private fun atrasoEmTexto(segundos: Double): String = when {
+        abs(segundos) < 0.05 -> "0 s"
+        else -> String.format(java.util.Locale.getDefault(), "%s%.1f s", if (segundos > 0) "+" else "−", abs(segundos))
+    }
+
+    /**
+     * O atraso da legenda, como no Jellyfin: uma barra no alto da tela, sem
+     * escurecer o filme, que vale na hora enquanto se arrasta.
+     *
+     * Ajusta-se olhando a boca de quem fala e a legenda ao mesmo tempo, então
+     * nada pode cobrir a cena — nem os controles do player, que saem. Os
+     * botões − e + andam um décimo de segundo, o passo que o dedo na barra não
+     * acerta; na TV a barra já chega focada, e as setas fazem o mesmo.
+     */
+    private fun showSubtitleDelay() {
+        cancelControlsHide()
+        setControlsVisible(false)
+
+        val vista = layoutInflater.inflate(R.layout.dialog_atraso_legenda, null)
+        val valor = vista.findViewById<TextView>(R.id.atraso_valor)
+        val barra = vista.findViewById<SeekBar>(R.id.atraso_barra)
+        // Passos de um décimo, de −30 a +30 s: legenda de outra edição do
+        // mesmo filme chega a vir dezenas de segundos fora.
+        barra.max = (ATRASO_MAXIMO * 20).toInt()
+        barra.keyProgressIncrement = 1
+        barra.progress = ((engine.subtitleDelay + ATRASO_MAXIMO) * 10).roundToInt().coerceIn(0, barra.max)
+        valor.text = atrasoEmTexto(engine.subtitleDelay)
+        barra.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                val segundos = progress / 10.0 - ATRASO_MAXIMO
+                engine.subtitleDelay = segundos
+                valor.text = atrasoEmTexto(segundos)
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar) = Unit
+            override fun onStopTrackingTouch(seekBar: SeekBar) = Unit
+        })
+        vista.findViewById<View>(R.id.atraso_menos).setOnClickListener { barra.progress -= 1 }
+        vista.findViewById<View>(R.id.atraso_mais).setOnClickListener { barra.progress += 1 }
+
+        val janela = Dialog(this, android.R.style.Theme_Translucent_NoTitleBar)
+        vista.findViewById<View>(R.id.atraso_fechar).setOnClickListener { janela.dismiss() }
+        janela.setContentView(vista)
+        janela.window?.apply {
+            val teto = (560 * resources.displayMetrics.density).toInt()
+            val margem = (16 * resources.displayMetrics.density).toInt()
+            setLayout(
+                minOf(teto, resources.displayMetrics.widthPixels - 2 * margem),
+                WindowManager.LayoutParams.WRAP_CONTENT,
+            )
+            setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL)
+            attributes = attributes.apply { y = margem * 2 }
+            clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            setBackgroundDrawableResource(android.R.color.transparent)
+            // Como no painel de ferramentas: sem foco enquanto sobe, para o
+            // sistema não devolver as barras e o filme não saltar de tamanho.
+            addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+            decorView.systemUiVisibility = window.decorView.systemUiVisibility
+        }
+        janela.setCanceledOnTouchOutside(true)
+        janela.setOnDismissListener { scheduleControlsHide() }
+        janela.show()
+        janela.window?.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+        // Com a janela já focável — antes disso o pedido se perdia, e as setas
+        // andavam entre os botões em vez de mexer na barra.
+        if (isTv) {
+            barra.isFocusableInTouchMode = true
+            barra.postDelayed({ barra.requestFocus() }, 150)
+        }
     }
 
     private fun showSpeedSheet() {
@@ -2199,3 +2357,6 @@ class PlayerActivity : Activity() {
         }
     }
 }
+
+/** Até onde o atraso da legenda vai, para cada lado, em segundos. */
+private const val ATRASO_MAXIMO = 30.0

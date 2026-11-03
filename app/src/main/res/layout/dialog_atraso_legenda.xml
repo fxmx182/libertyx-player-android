@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- O atraso da legenda: uma barra no alto da tela, como no Jellyfin.
+
+     No alto, e sem escurecer o filme, porque o ajuste se faz olhando a fala e
+     a legenda juntas — lá embaixo ela cobriria justamente o que se compara. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_hud"
+    android:paddingHorizontal="10dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="12dp">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/atraso_valor"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:gravity="center"
+            android:textColor="@color/libertyx_text"
+            android:textSize="17sp"
+            android:fontFamily="@font/manrope_semibold"
+            android:fontFeatureSettings="tnum" />
+
+        <ImageButton
+            android:id="@+id/atraso_fechar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="end|center_vertical"
+            android:background="@drawable/btn_player"
+            android:src="@drawable/ic_fechar"
+            android:contentDescription="@string/fechar" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/atraso_menos"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="@drawable/btn_player"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="−"
+            android:textColor="@color/libertyx_text"
+            android:textSize="22sp" />
+
+        <SeekBar
+            android:id="@+id/atraso_barra"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:minHeight="3dp"
+            android:maxHeight="3dp"
+            android:paddingVertical="14dp"
+            android:paddingHorizontal="12dp"
+            android:progressDrawable="@drawable/seek_progress"
+            android:background="@drawable/seek_focus"
+            android:thumb="@drawable/seek_thumb"
+            android:splitTrack="false" />
+
+        <TextView
+            android:id="@+id/atraso_mais"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="@drawable/btn_player"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="+"
+            android:textColor="@color/libertyx_text"
+            android:textSize="22sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/atraso_dica"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="@string/atraso_dica"
+        android:textColor="@color/libertyx_muted"
+        android:textSize="12sp" />
+</LinearLayout>

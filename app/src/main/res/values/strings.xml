@@ -116,6 +116,8 @@
     <string name="legendas">Subtitles</string>
     <string name="t_faixa_audio">Audio track</string>
     <string name="t_legenda">Subtitles</string>
+    <string name="t_atraso_legenda">Subtitle delay</string>
+    <string name="atraso_dica">− shows the subtitle earlier · + later</string>
     <string name="t_proporcao">Aspect ratio</string>
     <string name="t_velocidade">Speed</string>
     <string name="t_acelerar_segurar">Hold to speed up</string>

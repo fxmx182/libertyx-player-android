@@ -115,6 +115,8 @@
     <string name="legendas">Subtítulos</string>
     <string name="t_faixa_audio">Pista de audio</string>
     <string name="t_legenda">Subtítulos</string>
+    <string name="t_atraso_legenda">Retraso de subtítulos</string>
+    <string name="atraso_dica">− muestra el subtítulo antes · + después</string>
     <string name="t_proporcao">Proporción</string>
     <string name="t_velocidade">Velocidad</string>
     <string name="t_acelerar_segurar">Acelerar al mantener</string>

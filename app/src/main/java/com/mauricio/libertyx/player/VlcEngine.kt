@@ -180,6 +180,16 @@ class VlcEngine(private val context: Context) {
         get() = player.rate
         set(value) { player.rate = value }
 
+    /**
+     * O atraso da legenda, em segundos: positivo faz a fala escrita aparecer
+     * mais tarde, negativo mais cedo. Vale para o vídeo da vez — o VLC zera a
+     * cada arquivo aberto, e é o certo: o descompasso é de um arquivo, não do
+     * aparelho.
+     */
+    var subtitleDelay: Double
+        get() = player.spuDelay / 1_000_000.0
+        set(value) { player.setSpuDelay((value * 1_000_000).toLong()) }
+
     /** O VLC trabalha com 0–200; acima de 100 é ganho além do original. */
     var volume: Float = 1f
         set(value) {

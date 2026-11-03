@@ -115,6 +115,8 @@
     <string name="legendas">Legendas</string>
     <string name="t_faixa_audio">Faixa de áudio</string>
     <string name="t_legenda">Legenda</string>
+    <string name="t_atraso_legenda">Atraso da legenda</string>
+    <string name="atraso_dica">− mostra a legenda antes · + depois</string>
     <string name="t_proporcao">Proporção</string>
     <string name="t_velocidade">Velocidade</string>
     <string name="t_acelerar_segurar">Acelerar ao segurar</string>
