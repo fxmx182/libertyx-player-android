@@ -11,7 +11,9 @@ import com.mauricio.libertyx.core.Textos
  * A tentação é subir o `LibVLC` no início do app para a primeira reprodução
  * começar mais rápido. Não vale: são dezenas de megabytes de biblioteca nativa
  * carregados antes de a primeira tela aparecer, e quem abre o app para ver a
- * lista paga isso sem ganhar nada. O motor sobe quando alguém toca num vídeo.
+ * lista paga isso sem ganhar nada. O motor sobe quando alguém toca num vídeo —
+ * com uma exceção, a primeira abertura depois de instalar, em que ele sobe em
+ * segundo plano para montar o índice de fontes (ver `IndiceDeFontes`).
  *
  * Só os textos são ligados aqui: formatação de data e mensagens de erro vivem
  * em objetos sem tela, e precisam do idioma do aparelho mesmo assim. E o Pro,

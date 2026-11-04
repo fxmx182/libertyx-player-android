@@ -39,6 +39,7 @@ import androidx.core.content.ContextCompat
 import com.mauricio.libertyx.core.Device
 import com.mauricio.libertyx.core.Pro
 import com.mauricio.libertyx.pro.ProActivity
+import com.mauricio.libertyx.player.IndiceDeFontes
 import com.mauricio.libertyx.guia.Guia
 import com.mauricio.libertyx.guia.GuiaDeBoasVindas
 import com.mauricio.libertyx.core.LabTheme
@@ -91,6 +92,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Só na primeira abertura: sem isto, o primeiro vídeo esperava o VLC
+        // indexar as fontes do aparelho.
+        IndiceDeFontes.preparar(this)
         setContent {
             LibertyXTheme {
                 Surface(color = LabTheme.background, modifier = Modifier.fillMaxSize()) {
