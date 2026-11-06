@@ -2281,16 +2281,28 @@ class PlayerActivity : Activity() {
         atualizarIlha()
     }
 
+    private var capturando = false
+
     private fun takeSnapshot() {
-        val imagem = engine.snapshot()
-        if (imagem == null) {
-            showHud(getString(R.string.nada_capturar), null, null)
-            hideHudAfter(1500)
-            return
+        if (capturando) return
+        capturando = true
+        // Na TV o quadro vem do arquivo e leva uns segundos (ver VlcEngine.snapshot).
+        if (isTv) showHud(getString(R.string.capturando), null, null)
+        escopo.launch {
+            try {
+                val imagem = engine.snapshot()
+                if (imagem == null) {
+                    showHud(getString(R.string.nada_capturar), null, null)
+                    hideHudAfter(1500)
+                    return@launch
+                }
+                val salvo = salvarNaGaleria(imagem)
+                showHud(getString(if (salvo) R.string.salvo_imagens else R.string.nao_deu_salvar), null, null)
+                hideHudAfter(1800)
+            } finally {
+                capturando = false
+            }
         }
-        val salvo = salvarNaGaleria(imagem)
-        showHud(getString(if (salvo) R.string.salvo_imagens else R.string.nao_deu_salvar), null, null)
-        hideHudAfter(1800)
     }
 
     private fun salvarNaGaleria(imagem: Bitmap): Boolean = runCatching {

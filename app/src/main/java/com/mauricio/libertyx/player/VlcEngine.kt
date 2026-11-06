@@ -9,6 +9,7 @@ import android.os.SystemClock
 import android.os.ParcelFileDescriptor
 import android.view.TextureView
 import android.view.ViewGroup
+import com.mauricio.libertyx.core.Device
 import com.mauricio.libertyx.core.MediaItem
 import com.mauricio.libertyx.core.MediaOrigin
 import com.mauricio.libertyx.rede.ContasDeRede
@@ -21,6 +22,9 @@ import org.videolan.libvlc.util.VLCVideoLayout
 import kotlin.math.abs
 import com.mauricio.libertyx.core.Textos
 import com.mauricio.libertyx.R
+import com.mauricio.libertyx.library.QuadroDoVlc
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** "Forced", "Forçada(s)", "Forzado(s)", "Forcé(e)(s)" — palavra inteira, em qualquer caixa. */
 private val FORCADA = Regex("""(?i)(^|[^\p{L}])(forced|for[çcz]ad[oa]s?|forcée?s?)([^\p{L}]|$)""")
@@ -55,6 +59,7 @@ class VlcEngine(private val context: Context) {
 
     private val libVlc = Vlc.get(context)
     private val player = MediaPlayer(libVlc)
+    private val naTv = Device.isTv(context)
     private val main = Handler(Looper.getMainLooper())
 
     /**
@@ -212,14 +217,21 @@ class VlcEngine(private val context: Context) {
     /**
      * Liga o motor à tela.
      *
-     * `useTextureView = true` de propósito, e não é detalhe: com SurfaceView a
-     * imagem é desenhada por fora da janela, e escalar a view não escala o
-     * vídeo — a pinça de ampliar não teria efeito nenhum. Também é o que
-     * permite a captura de tela, que numa SurfaceView sai preta.
+     * No celular e no tablet, `useTextureView = true` de propósito, e não é
+     * detalhe: com SurfaceView a imagem é desenhada por fora da janela, e
+     * escalar a view não escala o vídeo — a pinça de ampliar não teria efeito
+     * nenhum. Também é o que permite a captura de tela, que numa SurfaceView
+     * sai preta.
+     *
+     * Na TV é o contrário. A TextureView passa pela composição da janela, que
+     * é SDR: um filme HDR saía lavado e a TV nem entrava no modo HDR. Na
+     * SurfaceView o decodificador entrega o quadro direto à tela, com o HDR
+     * junto, e um 4K pesa menos ao aparelho. Pinça não há em TV, e a captura
+     * de quadro tem outro caminho — ver [snapshot].
      */
     fun attach(layout: VLCVideoLayout) {
         videoLayout = layout
-        player.attachViews(layout, null, true, true)
+        player.attachViews(layout, null, true, !naTv)
     }
 
     fun detach() {
@@ -542,12 +554,61 @@ class VlcEngine(private val context: Context) {
      *
      * Funciona porque a superfície é uma TextureView — ver [attach]. Numa
      * SurfaceView isto devolveria um retângulo preto, que é o modo mais
-     * convincente de uma captura de tela parecer quebrada.
+     * convincente de uma captura de tela parecer quebrada; por isso, na TV, o
+     * quadro vem do arquivo ([quadroDoArquivo]).
      */
-    fun snapshot(): Bitmap? {
+    suspend fun snapshot(): Bitmap? {
+        if (naTv) return quadroDoArquivo()
         val layout = videoLayout ?: return null
         val textura = encontrarTextura(layout) ?: return null
         return textura.bitmap
+    }
+
+    /**
+     * O mesmo instante, tirado do arquivo por uma segunda leitura invisível —
+     * a das miniaturas, no tamanho do vídeo (até 4K).
+     *
+     * Leva uns segundos, e um quadro HDR sai convertido para SDR: é uma foto
+     * para a galeria, não precisa do brilho da TV.
+     */
+    private suspend fun quadroDoArquivo(): Bitmap? {
+        val origem = origemAtual ?: return null
+        val instante = player.time.takeIf { it >= 0 } ?: return null
+        val faixa = runCatching { player.currentVideoTrack }.getOrNull()
+        val sar = if (faixa != null && faixa.sarNum > 0 && faixa.sarDen > 0) faixa.sarNum.toDouble() / faixa.sarDen else 1.0
+        var largura = ((faixa?.width ?: 0) * sar).toInt().takeIf { it > 0 } ?: 1920
+        var altura = faixa?.height?.takeIf { it > 0 } ?: 1080
+        val reducao = minOf(1.0, 3840.0 / largura, 2160.0 / altura)
+        largura = (largura * reducao).toInt() and 1.inv()
+        altura = (altura * reducao).toInt() and 1.inv()
+
+        // Um descritor próprio: o do player está sendo lido, e dois leitores
+        // no mesmo descritor brigariam pela posição no arquivo.
+        var descritor: ParcelFileDescriptor? = null
+        val (uri, opcoes) = withContext(Dispatchers.IO) {
+            when (origem) {
+                is MediaOrigin.Local ->
+                    if (origem.uri.scheme == "file") origem.uri to emptyList()
+                    else context.contentResolver.openFileDescriptor(origem.uri, "r")
+                        ?.also { descritor = it }
+                        ?.let { Uri.parse("fd://${it.fd}") to emptyList<String>() }
+                is MediaOrigin.Remote -> origem.uri to emptyList()
+                is MediaOrigin.Smb -> {
+                    val loja = SmbServerStore.get(context)
+                    loja.byId(origem.serverId)?.let { servidor ->
+                        SmbBrowser.uri(servidor, origem.share, origem.path) to
+                            SmbBrowser.credenciais(servidor, loja.password(servidor))
+                    }
+                }
+                is MediaOrigin.WebDav, is MediaOrigin.Midia ->
+                    ContasDeRede.uriDeReproducao(context, origem)?.let { it to emptyList() }
+            }
+        } ?: return null
+        return try {
+            QuadroDoVlc.extrair(context, uri, opcoes, largura = largura, altura = altura, emMs = instante)?.imagem
+        } finally {
+            runCatching { descritor?.close() }
+        }
     }
 
     private fun encontrarTextura(raiz: ViewGroup): TextureView? {

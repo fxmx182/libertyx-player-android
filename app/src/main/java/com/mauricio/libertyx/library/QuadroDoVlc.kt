@@ -60,22 +60,32 @@ object QuadroDoVlc {
      */
     @Volatile private var formato = PixelFormat.RGBX_8888
 
+    /**
+     * @param emMs o instante exato do quadro, como na captura da TV. Sem ele,
+     *   é a miniatura: um terço do caminho, fugindo de quadro preto.
+     */
     suspend fun extrair(
         context: Context,
         uri: Uri,
         opcoes: List<String>,
         prazoMs: Long = 20_000,
+        largura: Int = LARGURA,
+        altura: Int = ALTURA,
+        emMs: Long? = null,
     ): Resultado? {
         val pedido = AtomicInteger(0)
-        tentar(context, uri, opcoes, prazoMs, formato, pedido)?.let { return it }
+        val tamanho = Tamanho(largura, altura, emMs)
+        tentar(context, uri, opcoes, prazoMs, formato, pedido, tamanho)?.let { return it }
 
         val certo = pedido.get()
         // Só os formatos de 4 bytes por pixel sabem virar Bitmap aqui.
         if (certo == formato || certo !in setOf(PixelFormat.RGBA_8888, PixelFormat.RGBX_8888)) return null
         Log.i(TAG, "miniatura: o VLC entrega pixels em 0x${certo.toString(16)}; ajustando")
         formato = certo
-        return tentar(context, uri, opcoes, prazoMs, certo, AtomicInteger(0))
+        return tentar(context, uri, opcoes, prazoMs, certo, AtomicInteger(0), tamanho)
     }
+
+    private class Tamanho(val largura: Int, val altura: Int, val emMs: Long?)
 
     private suspend fun tentar(
         context: Context,
@@ -84,9 +94,10 @@ object QuadroDoVlc {
         prazoMs: Long,
         formatoDoLeitor: Int,
         formatoPedido: AtomicInteger,
+        tamanho: Tamanho,
     ): Resultado? {
         val libVlc = Vlc.get(context)
-        val leitor = ImageReader.newInstance(LARGURA, ALTURA, formatoDoLeitor, 2)
+        val leitor = ImageReader.newInstance(tamanho.largura, tamanho.altura, formatoDoLeitor, 2)
         val tocador = withContext(Dispatchers.Main) { MediaPlayer(libVlc) }
 
         val aberto = CompletableDeferred<Unit>()
@@ -109,7 +120,7 @@ object QuadroDoVlc {
                     // um quadro preto de transição — e a capa saía preta.
                     // Espera alguns quadros por um com imagem; se o filme
                     // estiver mesmo escuro ali, aceita o que vier.
-                    if (quaseTodoPreto(bitmap) && escurosRecusados.incrementAndGet() <= 24) {
+                    if (tamanho.emMs == null && quaseTodoPreto(bitmap) && escurosRecusados.incrementAndGet() <= 24) {
                         return@setOnImageAvailableListener
                     }
                     quadro.complete(recortar(bitmap, tocador))
@@ -163,7 +174,7 @@ object QuadroDoVlc {
                     media.release()
                     tocador.vlcVout.apply {
                         setVideoSurface(leitor.surface, null)
-                        setWindowSize(LARGURA, ALTURA)
+                        setWindowSize(tamanho.largura, tamanho.altura)
                         attachViews()
                     }
                     tocador.play()
@@ -173,7 +184,12 @@ object QuadroDoVlc {
                 if (quadro.isCompleted) return@withTimeoutOrNull null
 
                 val duracao = tocador.length
-                if (duracao > 0) {
+                if (tamanho.emMs != null) {
+                    // Busca precisa: o quadro que estava na tela, não o
+                    // quadro-chave de antes dele.
+                    withContext(Dispatchers.Main) { tocador.setTime(tamanho.emMs, false) }
+                    tempoMinimo.set(max(0L, tamanho.emMs - 1_000L))
+                } else if (duracao > 0) {
                     // Um terço do caminho, como na miniatura local. A busca
                     // rápida cai no quadro-chave anterior, então a tolerância
                     // aceita chegar um pouco antes do ponto pedido.

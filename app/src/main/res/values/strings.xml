@@ -147,6 +147,7 @@
     <string name="travado_deitado">Locked to landscape</string>
     <string name="travado_em_pe">Locked to portrait</string>
     <string name="nada_capturar">Nothing to capture</string>
+    <string name="capturando">Capturing…</string>
     <string name="salvo_imagens">Saved to Pictures</string>
     <string name="nao_deu_salvar">Could not save</string>
     <string name="sem_pip">This Android has no floating window.</string>

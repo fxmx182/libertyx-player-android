@@ -146,6 +146,7 @@
     <string name="travado_deitado">Travado deitado</string>
     <string name="travado_em_pe">Travado em pé</string>
     <string name="nada_capturar">Nada para capturar</string>
+    <string name="capturando">Capturando…</string>
     <string name="salvo_imagens">Salvo em Imagens</string>
     <string name="nao_deu_salvar">Não deu para salvar</string>
     <string name="sem_pip">Este Android não tem janela flutuante.</string>
