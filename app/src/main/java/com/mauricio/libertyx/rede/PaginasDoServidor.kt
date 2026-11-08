@@ -125,7 +125,7 @@ private fun Cabeca(servidor: ServidorDeMidia, fundoDe: String, logoDe: String?) 
 
 /** O logotipo é PNG transparente: vai inteiro, sem corte e sem fundo. */
 @Composable
-private fun LogoDoServidor(servidor: ServidorDeMidia, id: String, modifier: Modifier) {
+internal fun LogoDoServidor(servidor: ServidorDeMidia, id: String, modifier: Modifier) {
     val imagem by produceState<Bitmap?>(null, id) {
         value = (servidor.baixarImagem(id, listOf("Logo"), 800) as? ServidorDeMidia.ImagemBaixada.Pronta)?.bitmap
     }
@@ -380,7 +380,34 @@ fun PaginaDoVideo(
         return
     }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 110.dp)) {
+    // Na TV, a cara da tela de TV do Jellyfin; no celular e no tablet, esta.
+    if (naTv) PaginaDoVideoNaTv(
+        servidor, item, d, temporada, extras, focoInicial,
+        onTocar = { continuar ->
+            tocar(
+                when (continuar) {
+                    true -> EscolhaDeFaixas.Inicio.CONTINUAR
+                    false -> EscolhaDeFaixas.Inicio.DO_COMECO
+                    null -> null
+                }
+            )
+        },
+        onVisto = {
+            val novo = !item.visto
+            marcar {
+                servidor.marcarVisto(item.id, novo)
+                ResumeStore.get(contexto).clear(MediaOrigin.Midia(conta.id, item.id).resumeKey)
+            }
+        },
+        onFavorito = {
+            val novo = !item.favorito
+            marcar { servidor.marcarFavorito(item.id, novo) }
+        },
+        onMais = { seletor = Seletores.MAIS },
+        onVideo = onVideo,
+        onPessoa = onPessoa,
+        onExtra = { tocarSozinho(it) },
+    ) else LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 110.dp)) {
         item(key = "cabeca") { Cabeca(servidor, d.fundoDe ?: item.serieId ?: item.id, d.logoDe) }
         item(key = "titulos") {
             Column(Modifier.padding(horizontal = 16.dp).widthIn(max = 760.dp)) {
@@ -598,6 +625,27 @@ fun PaginaDoVideo(
         }
         Seletores.MAIS -> MenuDoItem(item.titulo, { seletor = null }) {
             var primeira = true
+            // Na TV os seletores de faixa moram aqui, como no app de TV do Jellyfin.
+            if (naTv) {
+                val audios = d.faixas("Audio")
+                val legendas = d.faixas("Subtitle")
+                if (audios.isNotEmpty()) {
+                    OpcaoDoMenu(
+                        stringResource(R.string.tv_audio_x, (audios.firstOrNull { it.indice == audio } ?: audios.first()).titulo),
+                        primeira = true,
+                    ) { seletor = Seletores.AUDIO }
+                    primeira = false
+                }
+                val nomeDaLegenda = when (val l = legenda) {
+                    LegendaEscolhida.Automatica ->
+                        if (legendas.isEmpty()) stringResource(R.string.pg_nenhuma) else stringResource(R.string.pg_legenda_auto)
+                    LegendaEscolhida.Desligada -> stringResource(R.string.pg_legenda_desligada)
+                    is LegendaEscolhida.Faixa -> legendas.firstOrNull { it.indice == l.indice }?.titulo.orEmpty()
+                }
+                OpcaoDoMenu(stringResource(R.string.tv_legendas_x, nomeDaLegenda), primeira = primeira) { seletor = Seletores.LEGENDA }
+                OpcaoDoMenu(stringResource(R.string.tv_qualidade_x, Qualidade.nome(qualidade))) { seletor = Seletores.QUALIDADE }
+                primeira = false
+            }
             if (d.trailersNoDisco > 0 || d.trailersDaInternet.isNotEmpty()) {
                 OpcaoDoMenu(stringResource(R.string.pg_trailer), primeira = primeira) {
                     seletor = null

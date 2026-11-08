@@ -586,47 +586,50 @@ fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit, abrir: ServidorDeMidia.I
             containerColor = Color.Transparent,
             contentWindowInsets = margensSobADock(),
             topBar = {
-                TopAppBar(
-                    title = {
-                        Column {
-                            Text(atual.nome, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            if (pilha.size > 1) {
-                                Text(
-                                    pilha.drop(1).joinToString(" / ") { it.nome },
-                                    color = LabTheme.faint, fontSize = 11.sp,
-                                    maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                )
+                // Na TV a página do vídeo é a tela inteira, como no app de TV do Jellyfin.
+                if (!(naTv && atual is Nivel.Video)) {
+                    TopAppBar(
+                        title = {
+                            Column {
+                                Text(atual.nome, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                if (pilha.size > 1) {
+                                    Text(
+                                        pilha.drop(1).joinToString(" / ") { it.nome },
+                                        color = LabTheme.faint, fontSize = 11.sp,
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                             }
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = subir) {
-                            Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.voltar))
-                        }
-                    },
-                    actions = {
-                        if (biblioteca != null) {
-                            IconButton(onClick = { mostrandoFiltro = true }) {
-                                Icon(
-                                    if (filtro.ativo) Icons.Filled.FilterAlt else Icons.Filled.FilterList,
-                                    contentDescription = stringResource(R.string.ft_filtros),
-                                    tint = if (filtro.ativo) LabTheme.accent else LabTheme.muted,
-                                )
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = subir) {
+                                Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.voltar))
                             }
-                        }
-                        if (!naTv && (atual is Nivel.Pasta || atual is Nivel.Item)) {
-                            IconButton(onClick = { mostrandoOpcoes = true }) {
-                                Icon(Icons.Filled.Tune, contentDescription = stringResource(R.string.exibicao))
+                        },
+                        actions = {
+                            if (biblioteca != null) {
+                                IconButton(onClick = { mostrandoFiltro = true }) {
+                                    Icon(
+                                        if (filtro.ativo) Icons.Filled.FilterAlt else Icons.Filled.FilterList,
+                                        contentDescription = stringResource(R.string.ft_filtros),
+                                        tint = if (filtro.ativo) LabTheme.accent else LabTheme.muted,
+                                    )
+                                }
                             }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        titleContentColor = LabTheme.text,
-                        actionIconContentColor = LabTheme.muted,
-                        navigationIconContentColor = LabTheme.muted,
-                    ),
-                )
+                            if (!naTv && (atual is Nivel.Pasta || atual is Nivel.Item)) {
+                                IconButton(onClick = { mostrandoOpcoes = true }) {
+                                    Icon(Icons.Filled.Tune, contentDescription = stringResource(R.string.exibicao))
+                                }
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent,
+                            titleContentColor = LabTheme.text,
+                            actionIconContentColor = LabTheme.muted,
+                            navigationIconContentColor = LabTheme.muted,
+                        ),
+                    )
+                }
             },
         ) { padding ->
             Box(Modifier.padding(padding).fillMaxSize()) {

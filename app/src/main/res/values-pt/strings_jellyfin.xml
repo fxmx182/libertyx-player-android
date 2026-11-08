@@ -70,4 +70,17 @@
         <item quantity="one">%d título</item>
         <item quantity="other">%d títulos</item>
     </plurals>
+    <string name="tv_retomar_de">Retomar de %1$s</string>
+    <string name="tv_reproduzir">Reproduzir</string>
+    <string name="tv_do_inicio">Do início</string>
+    <string name="tv_assistido">Assistido</string>
+    <string name="tv_episodio_anterior">Episódio anterior</string>
+    <string name="tv_outras_opcoes">Outras opções</string>
+    <string name="tv_dirigido_por">DIRIGIDO POR</string>
+    <string name="tv_duracao">DURAÇÃO</string>
+    <string name="tv_finaliza_as">FINALIZA ÀS</string>
+    <string name="tv_proximos">Próximos episódios</string>
+    <string name="tv_audio_x">Áudio: %1$s</string>
+    <string name="tv_legendas_x">Legendas: %1$s</string>
+    <string name="tv_qualidade_x">Qualidade: %1$s</string>
 </resources>

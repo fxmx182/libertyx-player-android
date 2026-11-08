@@ -316,7 +316,11 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
     data class Pessoa(val id: String, val nome: String, val papel: String?, val tipo: String)
 
     /** Uma faixa do arquivo como o servidor a leu: "1080p HEVC SDR", "Portuguese - AC3 - 5.1". */
-    data class Fluxo(val tipo: String, val titulo: String, val indice: Int, val externo: Boolean, val padrao: Boolean)
+    data class Fluxo(
+        val tipo: String, val titulo: String, val indice: Int, val externo: Boolean, val padrao: Boolean,
+        /** Para os selos da TV ("1080p", "HEVC", "DD+", "5.1"). */
+        val codec: String = "", val altura: Int = 0, val canais: Int = 0, val faixaDinamica: String = "",
+    )
 
     /** O item de novo (o "visto" e onde parou podem ter mudado) e os detalhes dele. */
     suspend fun detalhes(id: String): Pair<Item, Detalhes> {
@@ -351,6 +355,10 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
                     indice = f.optInt("Index", -1),
                     externo = f.optBoolean("IsExternal"),
                     padrao = f.optBoolean("IsDefault"),
+                    codec = f.optString("Codec"),
+                    altura = f.optInt("Height", 0),
+                    canais = f.optInt("Channels", 0),
+                    faixaDinamica = f.optString("VideoRangeType").ifEmpty { f.optString("VideoRange") },
                 )
             },
             nomeDaTemporada = o.optString("SeasonName").ifEmpty { null },
