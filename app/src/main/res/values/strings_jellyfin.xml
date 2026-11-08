@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- O cliente Jellyfin/Emby completo: páginas, filtros, TV ao vivo, dock. -->
+<resources>
+    <string name="pg_assistir">Play</string>
+    <string name="pg_continuar">Resume</string>
+    <string name="pg_do_inicio">From start</string>
+    <string name="pg_favorito">Favorite</string>
+    <string name="pg_mais">More</string>
+    <string name="pg_trailer">Trailer</string>
+    <string name="pg_ir_para_serie">Go to series</string>
+    <string name="pg_abrir_imdb">Open on IMDb</string>
+    <string name="pg_abrir_tmdb">Open on TMDB</string>
+    <string name="pg_video">Video</string>
+    <string name="pg_audio">Audio</string>
+    <string name="pg_legendas">Subtitles</string>
+    <string name="pg_qualidade">Quality</string>
+    <string name="qualidade_original">Original</string>
+    <string name="pg_legenda_auto">Automatic (forced only)</string>
+    <string name="pg_legenda_desligada">Off</string>
+    <string name="pg_nenhuma">None</string>
+    <string name="pg_conversao_aviso">The server converts the video to this quality. Subtitles inside the file are not included.</string>
+    <string name="pg_generos">Genres</string>
+    <string name="pg_direcao">Director</string>
+    <string name="pg_roteiro">Writer</string>
+    <string name="pg_mais_de">More from %1$s</string>
+    <string name="pg_temporada">Season</string>
+    <string name="pg_elenco">Cast</string>
+    <string name="pg_extras">Extras</string>
+    <string name="pg_termina_as">Ends at %1$s</string>
+    <string name="pg_parou_em">Stopped at %1$s · %2$s left</string>
+    <string name="pg_nascimento">Born: %1$s</string>
+    <string name="pg_no_servidor">On the server</string>
+    <string name="pg_favoritos">Favorites</string>
+    <string name="tv_ao_vivo">Live TV</string>
+    <string name="ao_vivo">LIVE</string>
+    <string name="nenhum_canal">No channels</string>
+    <string name="erro_canal">The server could not open this channel.</string>
+    <string name="erro_quick_connect">Quick Connect is not enabled on this server.</string>
+    <string name="pular_abertura">Skip intro</string>
+    <string name="pular_creditos">Skip credits</string>
+    <string name="pular_recapitulacao">Skip recap</string>
+    <string name="pular_previa">Skip preview</string>
+    <string name="ft_ordenar">Sort by</string>
+    <string name="ft_nome">Name</string>
+    <string name="ft_adicionado">Date added</string>
+    <string name="ft_lancamento">Release date</string>
+    <string name="ft_nota">Rating</string>
+    <string name="ft_aleatorio">Random</string>
+    <string name="ft_decrescente">Descending</string>
+    <string name="ft_nao_vistos">Unwatched</string>
+    <string name="ft_favoritos">Favorites</string>
+    <string name="ft_genero">Genre</string>
+    <string name="ft_todos_generos">All genres</string>
+    <string name="ft_limpar">Clear filters</string>
+    <string name="ft_filtros">Sort and filter</string>
+    <string name="qc_entrar">Sign in with Quick Connect</string>
+    <string name="qc_aprove">Approve this code on another device already signed in to the server (Settings › Quick Connect):</string>
+    <string name="qc_esperando">Waiting for approval…</string>
+    <string name="qc_explica">No password needed: the app shows a code, and you approve it on a device that is already signed in.</string>
+    <string name="escolher_usuario">Choose user</string>
+    <string name="dock_titulo">Dock</string>
+    <string name="dock_explica">The dock fits 5 icons: Home, Settings and 3 of your choice. A server in the dock opens straight into it.</string>
+    <string name="dock_explica_tv">Home and Settings are always in the bar. Add up to 3 more — a server opens straight into it.</string>
+    <string name="local">Local</string>
+    <plurals name="pg_n_temporadas">
+        <item quantity="one">%d season</item>
+        <item quantity="other">%d seasons</item>
+    </plurals>
+    <plurals name="pg_n_titulos">
+        <item quantity="one">%d title</item>
+        <item quantity="other">%d titles</item>
+    </plurals>
+</resources>

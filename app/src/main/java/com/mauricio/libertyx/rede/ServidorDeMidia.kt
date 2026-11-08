@@ -10,7 +10,9 @@ import com.mauricio.libertyx.core.ResumeStore
 import com.mauricio.libertyx.core.resumeKey
 import com.mauricio.libertyx.core.Textos
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.coroutineContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -55,6 +57,8 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
         val naoVistos: Int? = null,
         /** Quando foi tocado pela última vez, em qualquer aparelho. */
         val ultimaVez: Long? = null,
+        /** O coração do app do Jellyfin. */
+        val favorito: Boolean = false,
     ) {
         /**
          * Episódio com o número na frente, filme com o ano: é como se acha o
@@ -106,19 +110,19 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
         return lista(pedir("/Users/$usuarioId/Items", consulta))
     }
 
-    /** Filmes e episódios cujo nome tem [termo], de todas as bibliotecas. */
+    /** Filmes, séries e episódios cujo nome tem [termo], de todas as bibliotecas. */
     suspend fun buscar(termo: String): List<Item> = lista(
         pedir(
             "/Users/$usuarioId/Items",
             listOf(
                 "searchTerm" to termo,
                 "Recursive" to "true",
-                "IncludeItemTypes" to "Movie,Episode,Video,MusicVideo",
+                "IncludeItemTypes" to "Movie,Series,Episode,Video,MusicVideo",
                 "Fields" to "DateCreated",
                 "Limit" to "40",
             ),
         )
-    ).filter { it.ehVideo }
+    ).filter { it.ehVideo || it.tipo == "Series" }
 
     /** O que a pessoa começou e não terminou, do mais recente ao mais antigo. */
     suspend fun continuar(): List<Item> = lista(
@@ -216,14 +220,17 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
      * [evento] é `null` no começo, `Progress` durante e `Stopped` no fim — e
      * é no `Stopped` perto do fim que o servidor marca como visto.
      */
-    suspend fun informar(evento: String?, itemId: String, segundos: Double, pausado: Boolean, sessao: String) {
+    suspend fun informar(
+        evento: String?, itemId: String, segundos: Double, pausado: Boolean, sessao: String,
+        convertendo: Boolean = false,
+    ) {
         val corpo = JSONObject()
             .put("ItemId", itemId)
             .put("MediaSourceId", itemId)
             .put("PositionTicks", (segundos.coerceAtLeast(0.0) * TICKS).toLong())
             .put("IsPaused", pausado)
             .put("CanSeek", true)
-            .put("PlayMethod", "DirectPlay")
+            .put("PlayMethod", if (convertendo) "Transcode" else "DirectPlay")
             .put("PlaySessionId", sessao)
         enviar("/Sessions/Playing" + evento?.let { "/$it" }.orEmpty(), corpo)
     }
@@ -250,18 +257,331 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
         id: String,
         tipos: List<String> = listOf("Thumb", "Backdrop", "Primary"),
         largura: Int = 480,
-    ): Bitmap? = withContext(Dispatchers.IO) {
+    ): Bitmap? = (baixarImagem(id, tipos, largura) as? ImagemBaixada.Pronta)?.bitmap
+
+    /** A imagem, ou por que não veio: o servidor não tem (não adianta pedir de novo) ou o pedido caiu (adianta). */
+    sealed interface ImagemBaixada {
+        class Pronta(val bitmap: Bitmap) : ImagemBaixada
+        data object NaoTem : ImagemBaixada
+        data object Falhou : ImagemBaixada
+    }
+
+    suspend fun baixarImagem(id: String, tipos: List<String>, largura: Int): ImagemBaixada = withContext(Dispatchers.IO) {
+        var caiu = false
         for (tipo in tipos) {
             val url = url("/Items/$id/Images/$tipo", listOf("maxWidth" to "$largura", "quality" to "80") + chaveNaConsulta)
                 ?: continue
-            val imagem = runCatching {
+            // Cancelada (a capa saiu da tela) não é "sem imagem": sobe, e a
+            // próxima vez que ela aparecer tenta de novo.
+            coroutineContext.ensureActive()
+            val resposta = runCatching {
                 ContasDeRede.http.newCall(Request.Builder().url(url.toString()).build()).execute().use { r ->
-                    if (r.code == 200) r.body?.bytes()?.let { BitmapFactory.decodeByteArray(it, 0, it.size) } else null
+                    r.code to (if (r.code == 200) r.body?.bytes() else null)
                 }
             }.getOrNull()
-            if (imagem != null) return@withContext imagem
+            if (resposta == null) { caiu = true; continue }
+            val (codigo, bytes) = resposta
+            val imagem = bytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+            if (imagem != null) return@withContext ImagemBaixada.Pronta(imagem)
+            if (codigo != 404) caiu = true
         }
-        null
+        if (caiu) ImagemBaixada.Falhou else ImagemBaixada.NaoTem
+    }
+
+    // MARK: Detalhes, séries, pessoas
+
+    /** O que a página de um filme, episódio, série ou pessoa mostra. */
+    class Detalhes(
+        val sinopse: String?,
+        val estreia: Long?,
+        val nota: Double?,
+        val classificacao: String?,
+        val generos: List<String>,
+        val pessoas: List<Pessoa>,
+        val fluxos: List<Fluxo>,
+        val nomeDaTemporada: String?,
+        val trailersDaInternet: List<String>,
+        val trailersNoDisco: Int,
+        val extras: Int,
+        /** "Imdb", "Tmdb"… — os números do item nos sites de onde vieram os dados. */
+        val idsExternos: Map<String, String>,
+        /** O logotipo e o fundo: do próprio item ou, num episódio, da série. */
+        val logoDe: String?,
+        val fundoDe: String?,
+    ) {
+        fun faixas(tipo: String): List<Fluxo> = fluxos.filter { it.tipo == tipo }
+        fun pessoasCom(vararg tipos: String): List<Pessoa> = pessoas.filter { it.tipo in tipos }
+    }
+
+    data class Pessoa(val id: String, val nome: String, val papel: String?, val tipo: String)
+
+    /** Uma faixa do arquivo como o servidor a leu: "1080p HEVC SDR", "Portuguese - AC3 - 5.1". */
+    data class Fluxo(val tipo: String, val titulo: String, val indice: Int, val externo: Boolean, val padrao: Boolean)
+
+    /** O item de novo (o "visto" e onde parou podem ter mudado) e os detalhes dele. */
+    suspend fun detalhes(id: String): Pair<Item, Detalhes> {
+        val o = pedir(
+            "/Users/$usuarioId/Items/$id",
+            listOf("Fields" to "Overview,People,Genres,MediaSources,MediaStreams,PremiereDate,DateCreated,RemoteTrailers,ProviderIds"),
+        )
+        val item = lista(JSONArray().put(o)).first()
+        val fluxosSoltos = o.optJSONArray("MediaStreams")
+        val fluxos = (fluxosSoltos?.takeIf { it.length() > 0 }
+            ?: o.optJSONArray("MediaSources")?.optJSONObject(0)?.optJSONArray("MediaStreams") ?: JSONArray())
+        val imagens = o.optJSONObject("ImageTags")
+        val fundos = o.optJSONArray("BackdropImageTags")
+        val ids = o.optJSONObject("ProviderIds")
+        val detalhes = Detalhes(
+            sinopse = o.optString("Overview").ifEmpty { null },
+            estreia = data(o.optString("PremiereDate")),
+            nota = o.optDouble("CommunityRating", 0.0).takeIf { it > 0 },
+            classificacao = o.optString("OfficialRating").ifEmpty { null },
+            generos = o.optJSONArray("Genres")?.let { g -> (0 until g.length()).map { g.optString(it) } }.orEmpty(),
+            pessoas = o.optJSONArray("People")?.let { p ->
+                (0 until p.length()).mapNotNull { p.optJSONObject(it) }.map {
+                    Pessoa(it.optString("Id"), it.optString("Name"), it.optString("Role").ifEmpty { null }, it.optString("Type"))
+                }
+            }.orEmpty(),
+            fluxos = (0 until fluxos.length()).mapNotNull { fluxos.optJSONObject(it) }.map { f ->
+                Fluxo(
+                    tipo = f.optString("Type"),
+                    titulo = f.optString("DisplayTitle").ifEmpty {
+                        listOf(f.optString("Language"), f.optString("Codec")).filter { it.isNotEmpty() }.joinToString(" - ")
+                    },
+                    indice = f.optInt("Index", -1),
+                    externo = f.optBoolean("IsExternal"),
+                    padrao = f.optBoolean("IsDefault"),
+                )
+            },
+            nomeDaTemporada = o.optString("SeasonName").ifEmpty { null },
+            trailersDaInternet = o.optJSONArray("RemoteTrailers")?.let { t ->
+                (0 until t.length()).mapNotNull { t.optJSONObject(it)?.optString("Url")?.ifEmpty { null } }
+            }.orEmpty(),
+            trailersNoDisco = o.optInt("LocalTrailerCount", 0),
+            extras = o.optInt("SpecialFeatureCount", 0),
+            idsExternos = ids?.keys()?.asSequence()?.associateWith { ids.optString(it) }.orEmpty(),
+            logoDe = if (imagens?.has("Logo") == true) id else o.optString("ParentLogoItemId").ifEmpty { null },
+            fundoDe = if ((fundos?.length() ?: 0) > 0) id else o.optString("ParentBackdropItemId").ifEmpty { null },
+        )
+        return item to detalhes
+    }
+
+    suspend fun temporadas(serieId: String): List<Item> = lista(
+        pedir("/Shows/$serieId/Seasons", listOf("UserId" to usuarioId, "Fields" to "DateCreated", "EnableUserData" to "true"))
+    )
+
+    suspend fun episodios(serieId: String, temporadaId: String): List<Item> = lista(
+        pedir(
+            "/Shows/$serieId/Episodes",
+            listOf("UserId" to usuarioId, "SeasonId" to temporadaId, "Fields" to "DateCreated", "EnableUserData" to "true"),
+        )
+    ).filter { it.ehVideo }
+
+    /** O episódio que a pessoa deve ver agora: o "A seguir" da série. */
+    suspend fun proximoDaSerie(serieId: String): Item? = lista(
+        pedir(
+            "/Shows/NextUp",
+            listOf("UserId" to usuarioId, "SeriesId" to serieId, "Limit" to "1", "Fields" to "DateCreated", "EnableUserData" to "true"),
+        )
+    ).firstOrNull { it.ehVideo }
+
+    /** Os filmes e as séries de que a pessoa participou, do mais novo ao mais velho. */
+    suspend fun obras(pessoaId: String): List<Item> = lista(
+        pedir(
+            "/Users/$usuarioId/Items",
+            listOf(
+                "PersonIds" to pessoaId, "Recursive" to "true", "IncludeItemTypes" to "Movie,Series",
+                "SortBy" to "PremiereDate,ProductionYear,SortName", "SortOrder" to "Descending",
+                "Fields" to "DateCreated", "EnableUserData" to "true",
+            ),
+        )
+    )
+
+    /** Filmes, séries e episódios marcados com o coração. */
+    suspend fun favoritos(): List<Item> = lista(
+        pedir(
+            "/Users/$usuarioId/Items",
+            listOf(
+                "Filters" to "IsFavorite", "Recursive" to "true", "IncludeItemTypes" to "Movie,Series,Episode,Video",
+                "SortBy" to "SortName", "Fields" to "DateCreated", "EnableUserData" to "true",
+            ),
+        )
+    )
+
+    suspend fun marcarFavorito(itemId: String, favorito: Boolean) {
+        pedirTexto("/Users/$usuarioId/FavoriteItems/$itemId", emptyList(), JSONObject(), apagar = !favorito)
+    }
+
+    suspend fun generos(biblioteca: Item): List<String> = lista(
+        pedir("/Genres", listOf("ParentId" to biblioteca.id, "UserId" to usuarioId, "SortBy" to "SortName"))
+    ).map { it.nome }.filter { it.isNotEmpty() }
+
+    /** Ordem e filtros de uma biblioteca, como no app do Jellyfin. */
+    data class Filtro(
+        val ordem: Ordem = Ordem.NOME,
+        val decrescente: Boolean = false,
+        val naoVistos: Boolean = false,
+        val favoritos: Boolean = false,
+        val genero: String? = null,
+    ) {
+        enum class Ordem(val campo: String) {
+            NOME("SortName"), ADICIONADO("DateCreated"), LANCAMENTO("PremiereDate"),
+            NOTA("CommunityRating"), ALEATORIO("Random"),
+        }
+
+        val ativo: Boolean get() = naoVistos || favoritos || genero != null || ordem != Ordem.NOME || decrescente
+    }
+
+    /** Uma biblioteca de filmes ou séries já ordenada e filtrada pelo servidor. */
+    suspend fun itens(biblioteca: Item, filtro: Filtro): List<Item> {
+        val consulta = mutableListOf(
+            "ParentId" to biblioteca.id,
+            "Recursive" to "true",
+            "IncludeItemTypes" to if (biblioteca.tipoDeColecao == "tvshows") "Series" else "Movie",
+            "SortBy" to if (filtro.ordem == Filtro.Ordem.NOME) "SortName" else "${filtro.ordem.campo},SortName",
+            "SortOrder" to if (filtro.decrescente) "Descending" else "Ascending",
+            "Fields" to "DateCreated",
+            "EnableUserData" to "true",
+        )
+        val filtros = listOfNotNull("IsUnplayed".takeIf { filtro.naoVistos }, "IsFavorite".takeIf { filtro.favoritos })
+        if (filtros.isNotEmpty()) consulta += "Filters" to filtros.joinToString(",")
+        filtro.genero?.let { consulta += "Genres" to it }
+        return lista(pedir("/Users/$usuarioId/Items", consulta))
+    }
+
+    // MARK: Trailers, extras, marcações
+
+    suspend fun trailersNoDisco(id: String): List<Item> =
+        lista(pedirLista("/Users/$usuarioId/Items/$id/LocalTrailers", emptyList()))
+
+    suspend fun extras(id: String): List<Item> =
+        lista(pedirLista("/Users/$usuarioId/Items/$id/SpecialFeatures", emptyList()))
+
+    /** Um trecho marcado do vídeo — abertura, créditos, recapitulação — em segundos. */
+    data class Segmento(val tipo: String, val inicio: Double, val fim: Double)
+
+    /**
+     * As marcações do vídeo (Jellyfin 10.10 em diante). Quem as cria é um
+     * plugin do servidor — o Intro Skipper, por exemplo; sem ele a lista vem
+     * vazia e o player só não oferece o "Pular".
+     */
+    suspend fun segmentos(id: String): List<Segmento> = runCatching {
+        val itens = pedir("/MediaSegments/$id").optJSONArray("Items") ?: JSONArray()
+        (0 until itens.length()).mapNotNull { itens.optJSONObject(it) }.map {
+            Segmento(it.optString("Type"), it.optLong("StartTicks") / TICKS, it.optLong("EndTicks") / TICKS)
+        }.filter { it.fim > it.inicio }
+    }.getOrDefault(emptyList())
+
+    // MARK: Conversão
+
+    /**
+     * A versão convertida pelo servidor (ver [Qualidade]): uma lista HLS em
+     * H.264 e AAC estéreo, no teto de bits pedido. O VLC do Android fala TLS
+     * 1.3 e abre a lista direto, sem ponte.
+     */
+    fun urlDaConversao(id: String, kbps: Int, sessao: String, audio: Int?): Uri? {
+        val largura = when {
+            kbps >= 10_000 -> 1920
+            kbps >= 4_000 -> 1280
+            kbps >= 2_000 -> 960
+            else -> 640
+        }
+        val consulta = mutableListOf(
+            "MediaSourceId" to id, "DeviceId" to idDoAparelho, "PlaySessionId" to sessao,
+            "VideoCodec" to "h264", "AudioCodec" to "aac",
+            "VideoBitrate" to "${maxOf(300_000, kbps * 1000 - 192_000)}", "AudioBitrate" to "192000",
+            "MaxAudioChannels" to "2", "TranscodingMaxAudioChannels" to "2", "MaxWidth" to "$largura",
+            "SegmentContainer" to "ts", "MinSegments" to "1", "BreakOnNonKeyFrames" to "true",
+        )
+        audio?.let { consulta += "AudioStreamIndex" to "$it" }
+        return url("/Videos/$id/master.m3u8", consulta + chaveNaConsulta)
+    }
+
+    /** Desliga a conversão no servidor quando o vídeo fecha. */
+    suspend fun pararConversao(sessao: String) {
+        runCatching {
+            pedirTexto("/Videos/ActiveEncodings", listOf("DeviceId" to idDoAparelho, "PlaySessionId" to sessao), null, apagar = true)
+        }
+    }
+
+    // MARK: TV ao vivo
+
+    /** Um canal da TV ao vivo do servidor, com o programa de agora. */
+    data class Canal(val id: String, val nome: String, val numero: String?, val programa: Programa?)
+
+    data class Programa(val nome: String, val inicio: Long?, val fim: Long?) {
+        /** De 0 a 1: quanto do programa já passou. */
+        fun andamento(agora: Long = System.currentTimeMillis()): Float? {
+            val i = inicio ?: return null
+            val f = fim ?: return null
+            if (f <= i) return null
+            return ((agora - i).toFloat() / (f - i)).coerceIn(0f, 1f)
+        }
+    }
+
+    /** Vazio quando o servidor não tem TV ao vivo: aí o app não mostra a faixa. */
+    suspend fun canais(limite: Int? = null): List<Canal> {
+        val consulta = mutableListOf(
+            "UserId" to usuarioId, "AddCurrentProgram" to "true", "EnableImages" to "true", "EnableUserData" to "false",
+        )
+        limite?.let { consulta += "Limit" to "$it" }
+        val itens = pedir("/LiveTv/Channels", consulta).optJSONArray("Items") ?: JSONArray()
+        return withContext(Dispatchers.Default) {
+            (0 until itens.length()).mapNotNull { itens.optJSONObject(it) }.map { o ->
+                val p = o.optJSONObject("CurrentProgram")
+                Canal(
+                    id = o.getString("Id"),
+                    nome = o.optString("Name"),
+                    numero = o.optString("Number").ifEmpty { o.optString("ChannelNumber") }.ifEmpty { null },
+                    programa = p?.let {
+                        Programa(it.optString("Name"), dataComFuso(it.optString("StartDate")), dataComFuso(it.optString("EndDate")))
+                    },
+                )
+            }
+        }
+    }
+
+    /**
+     * O canal pronto para tocar: o servidor abre a transmissão e a entrega em
+     * HLS. O perfil aceita H.264, HEVC e MPEG-2 com AAC, AC-3 e MP2 — o que a
+     * TV aberta manda —, então ele só reempacota, sem converter o vídeo.
+     */
+    suspend fun abrirCanal(id: String): Triple<Uri, String, String?> {
+        val perfil = JSONObject()
+            .put("Name", "LibertyX Player")
+            .put("MaxStreamingBitrate", 120_000_000)
+            .put("DirectPlayProfiles", JSONArray())
+            .put(
+                "TranscodingProfiles", JSONArray().put(
+                    JSONObject().put("Container", "ts").put("Type", "Video").put("Protocol", "hls")
+                        .put("Context", "Streaming").put("VideoCodec", "h264,hevc,mpeg2video")
+                        .put("AudioCodec", "aac,ac3,eac3,mp2,mp3").put("BreakOnNonKeyFrames", true)
+                        .put("MinSegments", 1).put("MaxAudioChannels", "6")
+                )
+            )
+            .put("CodecProfiles", JSONArray())
+            .put("SubtitleProfiles", JSONArray().put(JSONObject().put("Format", "srt").put("Method", "External")))
+        val corpo = JSONObject()
+            .put("UserId", usuarioId).put("DeviceProfile", perfil).put("AutoOpenLiveStream", true)
+            .put("EnableDirectPlay", false).put("EnableDirectStream", false).put("EnableTranscoding", true)
+            .put("MaxStreamingBitrate", 120_000_000)
+        val resposta = pedir(
+            "/Items/$id/PlaybackInfo",
+            listOf("UserId" to usuarioId, "AutoOpenLiveStream" to "true", "IsPlayback" to "true"),
+            corpo,
+        )
+        val fonte = resposta.optJSONArray("MediaSources")?.optJSONObject(0)
+        val caminho = fonte?.optString("TranscodingUrl")?.ifEmpty { null }
+            ?: throw ErroDeServidor(Textos.get(R.string.erro_canal))
+        val base = Uri.parse(conta.endereco.trimEnd('/') + caminho)
+        val uri = base.buildUpon().apply { chaveNaConsulta.forEach { (k, v) -> appendQueryParameter(k, v) } }.build()
+        val sessao = resposta.optString("PlaySessionId").ifEmpty { UUID.randomUUID().toString() }
+        return Triple(uri, sessao, fonte.optString("LiveStreamId").ifEmpty { null })
+    }
+
+    /** Fecha a transmissão — sem isto o sintonizador ficaria ocupado com um canal que ninguém vê. */
+    suspend fun fecharCanal(transmissao: String) {
+        runCatching { pedirTexto("/LiveStreams/Close", listOf("LiveStreamId" to transmissao), JSONObject()) }
     }
 
     val contaId: String get() = conta.id
@@ -362,6 +682,7 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
                 visto = usuario?.optBoolean("Played") == true,
                 naoVistos = usuario?.optInt("UnplayedItemCount", 0)?.takeIf { it > 0 },
                 ultimaVez = usuario?.optString("LastPlayedDate")?.let(::data),
+                favorito = usuario?.optBoolean("IsFavorite") == true,
             )
         }
         lembrarOndeParou(lidos)
@@ -386,6 +707,9 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
     private fun data(texto: String): Long? = texto.takeIf { it.length >= 19 }
         ?.let { runCatching { formatoDeData().parse(it.take(19))?.time }.getOrNull() }
 
+    /** O guia vem em UTC, com o "Z" no fim — os segundos bastam. */
+    private fun dataComFuso(texto: String): Long? = data(texto)
+
     companion object {
         /** O servidor conta o tempo em décimos de microssegundo. */
         private const val TICKS = 10_000_000.0
@@ -407,6 +731,40 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
          * A senha não fica guardada: o token basta para tudo e pode ser
          * revogado no painel do servidor sem trocar a senha.
          */
+        /** Os usuários que o servidor mostra na tela de entrada — para escolher sem digitar. */
+        suspend fun usuariosVisiveis(conta: ContaDeRede): List<String> = runCatching {
+            val texto = ServidorDeMidia(conta, null).pedirTexto("/Users/Public", emptyList(), null)
+            val lista = JSONArray(texto)
+            (0 until lista.length()).mapNotNull { lista.optJSONObject(it)?.optString("Name")?.ifEmpty { null } }
+        }.getOrDefault(emptyList())
+
+        /** O código do Quick Connect e o segredo para esperar a aprovação. */
+        suspend fun iniciarQuickConnect(conta: ContaDeRede): Pair<String, String> {
+            // Sem conexão (IOException) sobe como está: quem chama tenta o outro endereço.
+            val resposta = try {
+                ServidorDeMidia(conta, null).pedir("/QuickConnect/Initiate", corpo = JSONObject())
+            } catch (e: ErroDeServidor) {
+                throw ErroDeServidor(Textos.get(R.string.erro_quick_connect))
+            }
+            val codigo = resposta.optString("Code")
+            val segredo = resposta.optString("Secret")
+            if (codigo.isEmpty() || segredo.isEmpty()) throw ErroDeServidor(Textos.get(R.string.erro_quick_connect))
+            return codigo to segredo
+        }
+
+        /** Espera a aprovação e entra. Devolve o nome, o id do usuário e o token. */
+        suspend fun esperarQuickConnect(conta: ContaDeRede, segredo: String): Triple<String, String, String> {
+            val servidor = ServidorDeMidia(conta, null)
+            while (true) {
+                kotlinx.coroutines.delay(3_000)
+                val estado = servidor.pedir("/QuickConnect/Connect", listOf("Secret" to segredo))
+                if (estado.optBoolean("Authenticated")) break
+            }
+            val resposta = servidor.pedir("/Users/AuthenticateWithQuickConnect", corpo = JSONObject().put("Secret", segredo))
+            val usuario = resposta.optJSONObject("User")
+            return Triple(usuario?.optString("Name").orEmpty(), usuario?.optString("Id").orEmpty(), resposta.optString("AccessToken"))
+        }
+
         suspend fun entrar(conta: ContaDeRede, senha: String): Pair<String, String> {
             val resposta = ServidorDeMidia(conta, null).pedir(
                 "/Users/AuthenticateByName",

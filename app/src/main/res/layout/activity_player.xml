@@ -282,13 +282,14 @@
                 android:layout_weight="1"
                 android:layout_marginHorizontal="8dp"
                 android:max="10000"
-                android:minHeight="3dp"
-                android:maxHeight="3dp"
+                android:minHeight="5dp"
+                android:maxHeight="5dp"
                 android:progressDrawable="@drawable/seek_progress"
                 android:background="@drawable/seek_focus"
                 android:thumb="@drawable/seek_thumb"
                 android:splitTrack="false"
-                android:paddingHorizontal="8dp" />
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="14dp" />
 
             <TextView
                 android:id="@+id/tv_duration"

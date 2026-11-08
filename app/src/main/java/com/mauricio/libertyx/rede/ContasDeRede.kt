@@ -132,6 +132,26 @@ class ContasDeRede private constructor(context: Context) {
                 instance ?: ContasDeRede(context.applicationContext).also { instance = it }
             }
 
+        /**
+         * O endereço que o player abre. Igual ao [uriDeReproducao], menos no
+         * Jellyfin e no Emby: o canal de TV ao vivo já aberto (ver
+         * [Conversoes]) e a qualidade convertida pelo servidor (ver [Qualidade]).
+         */
+        fun uriParaTocar(context: Context, origem: MediaOrigin): Uri? {
+            if (origem !is MediaOrigin.Midia) return uriDeReproducao(context, origem)
+            Conversoes.canal(origem.itemId)?.let { return it }
+            val loja = get(context)
+            val conta = loja.byId(origem.contaId) ?: return null
+            val servidor = ServidorDeMidia(conta, loja.segredo(conta))
+            val kbps = Qualidade.da(context, conta.id)
+            if (kbps > 0) {
+                val sessao = Conversoes.comecar(origem.itemId)
+                return servidor.urlDaConversao(origem.itemId, kbps, sessao, Conversoes.audio(origem.itemId))
+            }
+            Conversoes.encerrar(origem.itemId)
+            return servidor.urlDoVideo(origem.itemId)
+        }
+
         /** O endereço que o VLC abre, para tocar ou para tirar a miniatura. */
         fun uriDeReproducao(context: Context, origem: MediaOrigin): Uri? {
             val loja = get(context)

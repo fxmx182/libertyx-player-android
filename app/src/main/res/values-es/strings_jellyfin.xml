@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- O cliente Jellyfin/Emby completo: páginas, filtros, TV ao vivo, dock. -->
+<resources>
+    <string name="pg_assistir">Ver</string>
+    <string name="pg_continuar">Continuar</string>
+    <string name="pg_do_inicio">Desde el inicio</string>
+    <string name="pg_favorito">Favorito</string>
+    <string name="pg_mais">Más</string>
+    <string name="pg_trailer">Tráiler</string>
+    <string name="pg_ir_para_serie">Ir a la serie</string>
+    <string name="pg_abrir_imdb">Abrir en IMDb</string>
+    <string name="pg_abrir_tmdb">Abrir en TMDB</string>
+    <string name="pg_video">Video</string>
+    <string name="pg_audio">Audio</string>
+    <string name="pg_legendas">Subtítulos</string>
+    <string name="pg_qualidade">Calidad</string>
+    <string name="qualidade_original">Original</string>
+    <string name="pg_legenda_auto">Automático (solo las forzadas)</string>
+    <string name="pg_legenda_desligada">Desactivados</string>
+    <string name="pg_nenhuma">Ninguno</string>
+    <string name="pg_conversao_aviso">El servidor convierte el video a esta calidad. Los subtítulos dentro del archivo no se incluyen.</string>
+    <string name="pg_generos">Géneros</string>
+    <string name="pg_direcao">Dirección</string>
+    <string name="pg_roteiro">Guion</string>
+    <string name="pg_mais_de">Más de %1$s</string>
+    <string name="pg_temporada">Temporada</string>
+    <string name="pg_elenco">Reparto</string>
+    <string name="pg_extras">Extras</string>
+    <string name="pg_termina_as">Termina a las %1$s</string>
+    <string name="pg_parou_em">Quedó en %1$s · faltan %2$s</string>
+    <string name="pg_nascimento">Nacimiento: %1$s</string>
+    <string name="pg_no_servidor">En el servidor</string>
+    <string name="pg_favoritos">Favoritos</string>
+    <string name="tv_ao_vivo">TV en vivo</string>
+    <string name="ao_vivo">EN VIVO</string>
+    <string name="nenhum_canal">Ningún canal</string>
+    <string name="erro_canal">El servidor no pudo abrir este canal.</string>
+    <string name="erro_quick_connect">Este servidor no tiene Quick Connect activado.</string>
+    <string name="pular_abertura">Saltar intro</string>
+    <string name="pular_creditos">Saltar créditos</string>
+    <string name="pular_recapitulacao">Saltar resumen</string>
+    <string name="pular_previa">Saltar avance</string>
+    <string name="ft_ordenar">Ordenar por</string>
+    <string name="ft_nome">Nombre</string>
+    <string name="ft_adicionado">Fecha de agregado</string>
+    <string name="ft_lancamento">Estreno</string>
+    <string name="ft_nota">Calificación</string>
+    <string name="ft_aleatorio">Aleatorio</string>
+    <string name="ft_decrescente">Descendente</string>
+    <string name="ft_nao_vistos">No vistos</string>
+    <string name="ft_favoritos">Favoritos</string>
+    <string name="ft_genero">Género</string>
+    <string name="ft_todos_generos">Todos los géneros</string>
+    <string name="ft_limpar">Borrar filtros</string>
+    <string name="ft_filtros">Orden y filtros</string>
+    <string name="qc_entrar">Entrar con Quick Connect</string>
+    <string name="qc_aprove">Aprueba este código en otro dispositivo ya conectado al servidor (Configuración › Quick Connect):</string>
+    <string name="qc_esperando">Esperando la aprobación…</string>
+    <string name="qc_explica">Sin escribir la contraseña: la app muestra un código y lo apruebas en un dispositivo ya conectado.</string>
+    <string name="escolher_usuario">Elegir usuario</string>
+    <string name="dock_titulo">Dock</string>
+    <string name="dock_explica">Caben 5 íconos: Inicio, Ajustes y 3 a tu elección. Un servidor en el dock se abre directamente.</string>
+    <string name="dock_explica_tv">Inicio y Ajustes siempre están en la barra. Añade hasta 3 más: un servidor se abre directamente.</string>
+    <string name="local">Local</string>
+    <plurals name="pg_n_temporadas">
+        <item quantity="one">%d temporada</item>
+        <item quantity="other">%d temporadas</item>
+    </plurals>
+    <plurals name="pg_n_titulos">
+        <item quantity="one">%d título</item>
+        <item quantity="other">%d títulos</item>
+    </plurals>
+</resources>

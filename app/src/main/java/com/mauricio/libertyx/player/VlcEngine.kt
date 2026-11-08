@@ -10,8 +10,10 @@ import android.os.ParcelFileDescriptor
 import android.view.TextureView
 import android.view.ViewGroup
 import com.mauricio.libertyx.core.Device
+import com.mauricio.libertyx.core.EscolhaDeFaixas
 import com.mauricio.libertyx.core.MediaItem
 import com.mauricio.libertyx.core.MediaOrigin
+import com.mauricio.libertyx.core.resumeKey
 import com.mauricio.libertyx.rede.ContasDeRede
 import com.mauricio.libertyx.smb.SmbBrowser
 import com.mauricio.libertyx.smb.SmbServerStore
@@ -276,13 +278,16 @@ class VlcEngine(private val context: Context) {
                 }
             }
             is MediaOrigin.WebDav, is MediaOrigin.Midia ->
-                Media(libVlc, ContasDeRede.uriDeReproducao(context, origem)
+                Media(libVlc, ContasDeRede.uriParaTocar(context, origem)
                     ?: error(Textos.get(R.string.erro_servidor_sumiu)))
         }
 
         // Outro vídeo: a escolha de legenda do anterior não vale para ele. O
         // mesmo vídeo reaberto (volta do segundo plano) mantém a escolha.
         if (item.origin != origemAtual) legendaDoUsuario = false
+        pedidoDeFaixas = EscolhaDeFaixas.consumir(item.origin.resumeKey)
+        idsInternos = null
+        legendasDeFora.clear()
         origemAtual = item.origin
         media.setHWDecoderEnabled(true, false)
         if (audioOnly) media.addOption(":no-video")
@@ -514,7 +519,55 @@ class VlcEngine(private val context: Context) {
     /** Legenda de um arquivo ao lado, escolhido pelo usuário. */
     fun addSubtitle(uri: Uri, selecionar: Boolean = true): Boolean {
         if (selecionar) legendaDoUsuario = true
+        // As de dentro do arquivo são as que existiam antes da primeira de
+        // fora; as de fora chegam depois, na ordem em que entram aqui.
+        if (idsInternos == null) idsInternos = player.spuTracks.orEmpty().map { it.id }.filter { it >= 0 }.toSet()
+        uri.lastPathSegment?.let { legendasDeFora += it }
         return player.addSlave(IMedia.Slave.Type.Subtitle, uri, selecionar)
+    }
+
+    /** O áudio e a legenda escolhidos na página do servidor, à espera de as faixas aparecerem. */
+    private var pedidoDeFaixas: EscolhaDeFaixas.Pedido? = null
+    private var idsInternos: Set<Int>? = null
+    private val legendasDeFora = mutableListOf<String>()
+
+    /**
+     * Aplica o que foi escolhido na página do servidor assim que a faixa
+     * pedida existe. As de dentro do arquivo aparecem ao abrir; a legenda de
+     * fora, só depois de baixada — por isso isto roda a cada faixa nova.
+     */
+    private fun aplicarPedidoDeFaixas() {
+        var pedido = pedidoDeFaixas ?: return
+        pedido.audio?.let { posicao ->
+            val faixas = audioTracks
+            if (posicao < faixas.size) {
+                if (player.audioTrack != faixas[posicao].id) {
+                    player.setAudioTrack(faixas[posicao].id)
+                    if (state == PlaybackState.Playing) ressincronizar()
+                }
+                pedido = pedido.copy(audio = null)
+            }
+        }
+        pedido.legenda?.let { legenda ->
+            val todas = player.spuTracks.orEmpty().filter { it.id >= 0 }
+            val internos = idsInternos
+            val internas = todas.filter { internos == null || it.id in internos }
+            val deFora = todas.filter { internos != null && it.id !in internos }
+            val alvo: Int? = when (legenda) {
+                EscolhaDeFaixas.Legenda.Desligada -> -1
+                is EscolhaDeFaixas.Legenda.Interna -> internas.getOrNull(legenda.posicao)?.id
+                is EscolhaDeFaixas.Legenda.Externa -> {
+                    val ordem = legendasDeFora.indexOfFirst { it.contains("(${legenda.indice}).") }
+                    if (ordem >= 0) deFora.getOrNull(ordem)?.id else null
+                }
+            }
+            if (alvo != null) {
+                legendaDoUsuario = true
+                if (player.spuTrack != alvo) player.setSpuTrack(alvo)
+                pedido = pedido.copy(legenda = null)
+            }
+        }
+        pedidoDeFaixas = pedido.takeIf { it.audio != null || it.legenda != null }
     }
 
     /** Quem escolheu a legenda no menu manda nela até o vídeo trocar. */
@@ -532,7 +585,7 @@ class VlcEngine(private val context: Context) {
      * depois das de dentro dele.
      */
     private fun aplicarRegraDaLegenda() {
-        if (legendaDoUsuario) return
+        if (legendaDoUsuario || pedidoDeFaixas?.legenda != null) return
         val faixas = player.spuTracks.orEmpty().filter { it.id >= 0 }
         val alvo = faixas.firstOrNull { ehForcada(it.name) }?.id ?: -1
         if (player.spuTrack != alvo) player.setSpuTrack(alvo)
@@ -657,6 +710,7 @@ class VlcEngine(private val context: Context) {
             MediaPlayer.Event.Playing -> {
                 buffering = false
                 state = PlaybackState.Playing
+                aplicarPedidoDeFaixas()
                 aplicarRegraDaLegenda()
             }
             MediaPlayer.Event.Paused -> state = PlaybackState.Paused
@@ -701,6 +755,7 @@ class VlcEngine(private val context: Context) {
                 onTimeUpdate?.invoke(doVlc)
             }
             MediaPlayer.Event.ESAdded, MediaPlayer.Event.ESDeleted -> {
+                aplicarPedidoDeFaixas()
                 aplicarRegraDaLegenda()
                 onTracksChange?.invoke()
             }

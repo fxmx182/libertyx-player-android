@@ -45,6 +45,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import com.mauricio.libertyx.R
+import com.mauricio.libertyx.core.EscolhaDeFaixas
 import com.mauricio.libertyx.core.Historico
 import com.mauricio.libertyx.core.MediaItem
 import com.mauricio.libertyx.core.MediaOrigin
@@ -54,6 +55,8 @@ import com.mauricio.libertyx.core.Device
 import com.mauricio.libertyx.core.PlayerPreferences
 import com.mauricio.libertyx.core.ResumeStore
 import com.mauricio.libertyx.rede.AvisoAoServidor
+import com.mauricio.libertyx.rede.ContasDeRede
+import com.mauricio.libertyx.rede.ServidorDeMidia
 import com.mauricio.libertyx.core.TimeFormat
 import com.mauricio.libertyx.core.resumeKey
 import com.mauricio.libertyx.databinding.ActivityPlayerBinding
@@ -191,6 +194,7 @@ class PlayerActivity : Activity() {
         super.onCreate(savedInstanceState)
         ui = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(ui.root)
+        prepararBotaoPular()
 
         prefs = PlayerPreferences(this)
         resume = ResumeStore.get(this)
@@ -500,6 +504,7 @@ class PlayerActivity : Activity() {
                 engine.seek(alvo, precise = false)
             } else {
                 updateProgress(tempo)
+                atualizarPulo(tempo)
                 saveResumePoint(tempo)
                 aviso.andou(tempo, pausado = false)
             }
@@ -538,12 +543,17 @@ class PlayerActivity : Activity() {
             return
         }
         buscarLegendasAoLado(alvo)
+        carregarSegmentos(alvo)
 
         // Retomar é pergunta, não regra: às vezes se quer rever o filme desde o
         // começo, e voltar sozinho ao meio obriga a desfazer na mão toda vez.
-        val retomada = resume.position(alvo.origin.resumeKey)
+        // Quem já respondeu na página do servidor ("Continuar" ou "Do
+        // início") não é perguntado de novo.
+        val pedido = EscolhaDeFaixas.consumirInicio(alvo.origin.resumeKey)
+        if (pedido == EscolhaDeFaixas.Inicio.DO_COMECO) resume.clear(alvo.origin.resumeKey)
+        val retomada = if (pedido == EscolhaDeFaixas.Inicio.DO_COMECO) null else resume.position(alvo.origin.resumeKey)
         aviso.comecou(alvo, retomada ?: 0.0)
-        if (retomada != null && prefs.askToResume) {
+        if (retomada != null && prefs.askToResume && pedido != EscolhaDeFaixas.Inicio.CONTINUAR) {
             perguntarRetomada(retomada)
         } else {
             if (retomada != null) pendingResume = retomada
@@ -566,6 +576,92 @@ class PlayerActivity : Activity() {
             if (item?.origin != alvo.origin) return@launch
             arquivos.forEach { engine.addSubtitle(Uri.fromFile(it), selecionar = false) }
         }
+    }
+
+    // MARK: - Pular abertura
+
+    /** Abertura, créditos e recapitulação marcados no Jellyfin (ver [ServidorDeMidia.segmentos]). */
+    private var segmentos: List<ServidorDeMidia.Segmento> = emptyList()
+    private var segmentoNaTela: ServidorDeMidia.Segmento? = null
+    private lateinit var botaoPular: TextView
+
+    /**
+     * O botão claro no canto, por cima de tudo, como no app do Jellyfin e nos
+     * de streaming: aparece só enquanto o trecho marcado passa, com ou sem os
+     * controles na tela. Na TV ele pega o foco, e o OK pula.
+     */
+    private fun prepararBotaoPular() {
+        val dp = resources.displayMetrics.density
+        botaoPular = TextView(this).apply {
+            setTextColor(android.graphics.Color.BLACK)
+            textSize = 15f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setPadding((20 * dp).toInt(), (11 * dp).toInt(), (20 * dp).toInt(), (11 * dp).toInt())
+            background = android.graphics.drawable.GradientDrawable().apply {
+                cornerRadius = 30 * dp
+                setColor(android.graphics.Color.argb(235, 255, 255, 255))
+            }
+            setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_pular, 0, 0, 0)
+            compoundDrawablePadding = (8 * dp).toInt()
+            isFocusable = true
+            visibility = View.GONE
+            setOnClickListener { pularSegmento() }
+        }
+        ui.root.addView(
+            botaoPular,
+            FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
+                gravity = Gravity.BOTTOM or Gravity.END
+                marginEnd = (28 * dp).toInt()
+                bottomMargin = (120 * dp).toInt()
+            },
+        )
+    }
+
+    private fun carregarSegmentos(alvo: MediaItem) {
+        segmentos = emptyList()
+        mostrarPulo(null)
+        val origem = alvo.origin as? MediaOrigin.Midia ?: return
+        val loja = ContasDeRede.get(this)
+        val conta = loja.byId(origem.contaId) ?: return
+        escopo.launch {
+            val lidos = ServidorDeMidia(conta, loja.segredo(conta)).segmentos(origem.itemId)
+            if (item?.origin != alvo.origin) return@launch
+            segmentos = lidos.filter { it.tipo in setOf("Intro", "Outro", "Recap", "Preview") }
+        }
+    }
+
+    private fun atualizarPulo(tempo: Double) {
+        if (segmentos.isEmpty()) return
+        // Some no último segundo do trecho: pular dali já não adianta nada.
+        val atual = segmentos.firstOrNull { tempo >= it.inicio && tempo < it.fim - 1 }
+        if (atual != segmentoNaTela) mostrarPulo(atual)
+    }
+
+    private fun mostrarPulo(segmento: ServidorDeMidia.Segmento?) {
+        segmentoNaTela = segmento
+        if (!::botaoPular.isInitialized) return
+        if (segmento == null) {
+            botaoPular.visibility = View.GONE
+            return
+        }
+        botaoPular.text = getString(
+            when (segmento.tipo) {
+                "Outro" -> R.string.pular_creditos
+                "Recap" -> R.string.pular_recapitulacao
+                "Preview" -> R.string.pular_previa
+                else -> R.string.pular_abertura
+            }
+        )
+        botaoPular.visibility = View.VISIBLE
+        if (isTv) botaoPular.requestFocus()
+    }
+
+    private fun pularSegmento() {
+        val segmento = segmentoNaTela ?: return
+        mostrarPulo(null)
+        // Créditos que vão até o fim levam ao fim — e o fim leva ao próximo episódio.
+        val destino = minOf(segmento.fim, maxOf(0.0, engine.duration - 0.5))
+        engine.seek(destino, precise = false)
     }
 
     private fun perguntarRetomada(instante: Double) {

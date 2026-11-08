@@ -238,10 +238,9 @@ fun LibraryScreen(
             label = "estante e pasta",
         ) { pasta ->
             when {
-                // Sem vídeo no aparelho, mas com servidor ou histórico, a
-                // estante aparece igual: quem só assiste do Jellyfin não pode
-                // cair na tela de boas-vindas toda vez.
-                grupos.isEmpty() && continuar.isEmpty() && atalhos.isEmpty() ->
+                // O Início é só o que está no aparelho: sem pasta, as boas-vindas
+                // (os servidores ficam na dock, montada em Ajustes › Dock).
+                grupos.isEmpty() ->
                     if (varrendo) Box(Modifier.fillMaxSize()) else Vazio(onOpenServers)
                 pasta == null -> Estante(
                     grupos = grupos,
@@ -373,10 +372,9 @@ private fun Estante(
             )
         }
 
-        faixasDeCima(continuar, atalhos, volta, onAtalho, onRemoverDoHistorico)
-
+        // O Início é só o que está no aparelho; os servidores ficam na dock.
         if (grupos.isNotEmpty()) {
-            inteiro("pastas") { Secao(stringResource(R.string.pastas), grupos.size.toString()) }
+            inteiro("pastas") { Secao(stringResource(R.string.local), grupos.size.toString()) }
         }
         items(grupos, key = { it.path }) { grupo ->
             CapaDePasta(grupo) { onAbrir(grupo) }
@@ -557,119 +555,6 @@ private fun CartaoDaRede(onClick: () -> Unit) {
     }
 }
 
-/**
- * O histórico e os servidores salvos, no alto da estante.
- *
- * O histórico vale para qualquer origem; segurar um cartão oferece tirá-lo
- * dali. Os servidores entram direto no servidor — cadastrar fica no "+".
- */
-private fun LazyGridScope.faixasDeCima(
-    continuar: List<MediaItem>,
-    atalhos: List<AtalhoDeServidor>,
-    volta: Int,
-    onAtalho: (AtalhoDeServidor) -> Unit,
-    onRemoverDoHistorico: (MediaItem) -> Unit,
-) {
-    if (continuar.isNotEmpty()) {
-        inteiro("continuar") {
-            val contexto = LocalContext.current
-            Column {
-                Secao(stringResource(R.string.historico))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(continuar, key = { it.origin.resumeKey }) { item ->
-                        CartaoDeContinuar(
-                            item, volta,
-                            onRemover = { onRemoverDoHistorico(item) },
-                        ) { Playback.start(contexto, item, continuar) }
-                    }
-                }
-            }
-        }
-    }
-    if (atalhos.isNotEmpty()) {
-        inteiro("servidores") {
-            Column {
-                Secao(stringResource(R.string.servidores), atalhos.size.toString())
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(atalhos, key = { it.chave }) { atalho ->
-                        Row(
-                            Modifier.widthIn(max = 220.dp)
-                                .tvFocus(LabTheme.radiusCard, scale = 1.03f)
-                                .clip(RoundedCornerShape(LabTheme.radiusCard)).labCard()
-                                .clickable { onAtalho(atalho) }
-                                .padding(start = 8.dp, end = 14.dp, top = 8.dp, bottom = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Box(
-                                Modifier.size(34.dp).clip(RoundedCornerShape(10.dp))
-                                    .background(LabTheme.accent.copy(alpha = 0.14f)),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(atalho.icone, null, tint = LabTheme.accent, modifier = Modifier.size(18.dp))
-                            }
-                            Spacer(Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    atalho.nome, color = LabTheme.text, fontSize = 14.sp, fontWeight = FontWeight.Bold,
-                                    maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                )
-                                Text(atalho.tipo, color = LabTheme.muted, fontSize = 11.sp, maxLines = 1)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/** Continuar: a miniatura larga, a barra do quanto já foi, e quanto falta. */
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun CartaoDeContinuar(item: MediaItem, volta: Int, onRemover: () -> Unit, onClick: () -> Unit) {
-    val contexto = LocalContext.current
-    val loja = ResumeStore.get(contexto)
-    val progresso = remember(item.id, volta) { loja.progress(item.origin.resumeKey) }
-    val falta = remember(item.id, volta) { loja.remaining(item.origin.resumeKey) }
-
-    var menu by remember { mutableStateOf(false) }
-    Column(
-        Modifier.width(236.dp * Escala.fator()).tvFocus(14.dp)
-            .combinedClickable(onClick = onClick, onLongClick = { menu = true }),
-    ) {
-        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, containerColor = LabTheme.surface) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.remover_do_historico)) },
-                onClick = { menu = false; onRemover() },
-            )
-        }
-        Box(
-            Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(14.dp))
-                .border(0.5.dp, LabTheme.glassBorder, RoundedCornerShape(14.dp)),
-        ) {
-            ImagemDe(item, Modifier.fillMaxSize())
-            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.18f)))
-            Box(
-                Modifier.align(Alignment.Center).size(44.dp).clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.45f))
-                    .border(1.dp, Color.White.copy(alpha = 0.6f), CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Filled.PlayArrow, null, tint = Color.White, modifier = Modifier.size(26.dp))
-            }
-            BarraDeProgresso(progresso)
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            item.title, color = LabTheme.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-            maxLines = 1, overflow = TextOverflow.Ellipsis,
-        )
-        if (falta != null) {
-            Text(stringResource(R.string.faltam, TimeFormat.spoken(falta)), color = LabTheme.muted, fontSize = 11.sp)
-        }
-    }
-}
-
 // ─── Dentro da pasta ────────────────────────────────────────────────────────
 
 @Composable
@@ -704,11 +589,7 @@ internal fun Pasta(
                 Titulo(if (raiz) stringResource(R.string.biblioteca) else grupo.name, resumoDa(grupo))
             }
         }
-        if (raiz) faixasDeCima(continuar, atalhos, volta, onAtalho, onRemoverDoHistorico)
-        // Com faixas em cima, os vídeos da pasta precisam de um título próprio.
-        if (raiz && (continuar.isNotEmpty() || atalhos.isNotEmpty())) {
-            inteiro("secao") { Secao(grupo.name) }
-        }
+        if (raiz) inteiro("secao") { Secao(grupo.name) }
         if (emGrade) {
             items(ordenados, key = { it.id }) { item ->
                 CartaoDeVideo(item, volta) { Playback.start(contexto, item, ordenados) }

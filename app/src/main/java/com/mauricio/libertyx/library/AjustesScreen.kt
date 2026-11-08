@@ -55,6 +55,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.ui.draw.alpha
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Switch
 import androidx.compose.ui.unit.sp
 import com.mauricio.libertyx.BuildConfig
 import com.mauricio.libertyx.R
@@ -103,6 +109,8 @@ fun AjustesScreen(onServidores: () -> Unit, onWebDav: () -> Unit, onGuia: (() ->
                 }
             }
             item {
+                SecaoDaDock()
+
                 Grupo(stringResource(R.string.preferencias)) {
                     Linha(Icons.Outlined.Tune, stringResource(R.string.exibicao), stringResource(R.string.exibicao_sub)) {
                         folha = Folha.EXIBICAO
@@ -301,5 +309,66 @@ private fun enviarEmail(contexto: Context) {
         contexto.startActivity(email)
     } catch (_: ActivityNotFoundException) {
         Toast.makeText(contexto, contexto.getString(R.string.sem_app_de_email, EMAIL), Toast.LENGTH_LONG).show()
+    }
+}
+
+/**
+ * Ajustes › Dock: o que fica a um toque além de Início e Ajustes. Lotada (três
+ * escolhidas), as outras chaves apagam até abrir vaga.
+ */
+@Composable
+private fun SecaoDaDock() {
+    val contexto = LocalContext.current
+    val versao = DockEscolhida.versao.intValue
+    val escolhidas = remember(versao) { DockEscolhida.validos(contexto) }
+    val contas = remember(versao) { com.mauricio.libertyx.rede.ContasDeRede.get(contexto).contas }
+    val smb = remember(versao) { com.mauricio.libertyx.smb.SmbServerStore.get(contexto).servers }
+    val cheia = escolhidas.size >= DockEscolhida.MAXIMO
+    val opcoes = buildList {
+        add(Triple<Aba, String, Pair<ImageVector?, Int?>>(Aba.Arquivos, stringResource(R.string.aba_arquivos), Icons.Outlined.Folder to null))
+        add(Triple(Aba.Procurar, stringResource(R.string.aba_procurar), Icons.Outlined.Search to null))
+        smb.forEach { add(Triple(Aba.Smb(it.id), it.name, null to R.drawable.logo_smb)) }
+        contas.forEach {
+            val desenho: Pair<ImageVector?, Int?> =
+                if (it.tipo == com.mauricio.libertyx.rede.ContaDeRede.Tipo.JELLYFIN) null to R.drawable.logo_jellyfin
+                else Icons.Outlined.Cloud to null
+            add(Triple(Aba.Conta(it.id), it.nome, desenho))
+        }
+    }
+    Column(Modifier.padding(bottom = 18.dp)) {
+        Secao(stringResource(R.string.dock_titulo))
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(LabTheme.radiusCard)).labCard()) {
+            opcoes.forEachIndexed { i, (aba, nome, desenho) ->
+                val ligada = aba in escolhidas
+                val bloqueada = cheia && !ligada
+                Column {
+                    Row(
+                        Modifier.fillMaxWidth().tvFocus(LabTheme.radiusSmall, scale = 1.01f)
+                            .clickable(enabled = !bloqueada) { DockEscolhida.alternar(contexto, aba) }
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                            .alpha(if (bloqueada) 0.45f else 1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.size(26.dp), contentAlignment = Alignment.Center) {
+                            val (vetor, imagem) = desenho
+                            if (imagem != null) androidx.compose.foundation.Image(painterResource(imagem), null, Modifier.size(22.dp))
+                            else if (vetor != null) Icon(vetor, null, tint = LabTheme.accent, modifier = Modifier.size(24.dp))
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Text(nome, color = LabTheme.text, fontSize = 16.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                        Switch(
+                            checked = ligada, onCheckedChange = null, enabled = !bloqueada,
+                            colors = SwitchDefaults.colors(checkedTrackColor = LabTheme.accent, checkedThumbColor = Color.Black),
+                        )
+                    }
+                    if (i < opcoes.lastIndex) HorizontalDivider(Modifier.padding(start = 58.dp), thickness = 0.5.dp, color = LabTheme.glassBorder)
+                }
+            }
+        }
+        val naTv = com.mauricio.libertyx.core.Device.isTv(contexto)
+        Text(
+            stringResource(if (naTv) R.string.dock_explica_tv else R.string.dock_explica),
+            color = LabTheme.faint, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp, start = 4.dp),
+        )
     }
 }

@@ -29,7 +29,11 @@ import java.util.UUID
  */
 class AvisoAoServidor(context: Context) {
 
-    private class Sessao(val conta: ContaDeRede, val servidor: ServidorDeMidia, val itemId: String, val id: String)
+    /** [convertendo]: o servidor converte ou reempacota — o [id] é o que já foi no endereço do vídeo. */
+    private class Sessao(
+        val conta: ContaDeRede, val servidor: ServidorDeMidia, val itemId: String, val id: String,
+        val convertendo: Boolean,
+    )
 
     private val contexto = context.applicationContext
 
@@ -42,7 +46,11 @@ class AvisoAoServidor(context: Context) {
         val origem = item.origin as? MediaOrigin.Midia ?: return
         val loja = ContasDeRede.get(contexto)
         val conta = loja.byId(origem.contaId) ?: return
-        val nova = Sessao(conta, ServidorDeMidia(conta, loja.segredo(conta)), origem.itemId, UUID.randomUUID().toString())
+        val conversao = Conversoes.sessao(origem.itemId)
+        val nova = Sessao(
+            conta, ServidorDeMidia(conta, loja.segredo(conta)), origem.itemId,
+            conversao ?: UUID.randomUUID().toString(), convertendo = conversao != null,
+        )
         sessao = nova
         pausado = false
         ultimoAviso = System.currentTimeMillis()
@@ -73,6 +81,16 @@ class AvisoAoServidor(context: Context) {
         val atual = sessao ?: return
         sessao = null
         avisar(atual, "Stopped", segundos)
+        if (atual.convertendo) {
+            // Sem isto o ffmpeg do servidor seguiria convertendo, e o
+            // sintonizador ficaria preso num canal que ninguém vê.
+            val transmissao = Conversoes.transmissao(atual.itemId)
+            Conversoes.encerrar(atual.itemId)
+            ultimo = fila.launch {
+                atual.servidor.pararConversao(atual.id)
+                transmissao?.let { atual.servidor.fecharCanal(it) }
+            }
+        }
         if (!visto) return
         ultimo = fila.launch {
             val proximo = runCatching { atual.servidor.proximoEpisodio(atual.itemId) }.getOrNull() ?: return@launch
@@ -88,7 +106,9 @@ class AvisoAoServidor(context: Context) {
         ultimo = fila.launch {
             // Sem rede, o aviso se perde, e o vídeo segue tocando: a marca do
             // aparelho continua valendo, e o próximo aviso corrige o servidor.
-            runCatching { sessao.servidor.informar(evento, sessao.itemId, segundos, pausadoAgora, sessao.id) }
+            runCatching {
+                sessao.servidor.informar(evento, sessao.itemId, segundos, pausadoAgora, sessao.id, sessao.convertendo)
+            }
         }
     }
 

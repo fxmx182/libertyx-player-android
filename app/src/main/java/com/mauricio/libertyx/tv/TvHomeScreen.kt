@@ -113,40 +113,14 @@ fun TvHomeScreen(onOpenServers: () -> Unit, onAtalho: (AtalhoDeServidor) -> Unit
         contentPadding = PaddingValues(top = 12.dp, bottom = OVERSCAN_V),
         verticalArrangement = Arrangement.spacedBy(34.dp),
     ) {
-        // O que foi visto por último, de qualquer origem — o mesmo histórico
-        // do celular. Vem primeiro: é o que se quer ao ligar a TV de novo.
-        if (historico.isNotEmpty()) {
-            item(key = "historico") {
-                Faixa(stringResource(R.string.historico)) {
-                    items(historico, key = { it.origin.resumeKey }) { item ->
-                        CartaoVideo(
-                            item = item,
-                            modifier = if (item === historico.first()) Modifier.focusRequester(primeiroFoco) else Modifier,
-                            volta = volta,
-                            onRemover = {
-                                refocar = true
-                                Historico.get(contexto).remover(item)
-                            },
-                        ) { Playback.start(contexto, item, historico) }
-                    }
-                }
-            }
-        }
-
-        // Todos os servidores salvos, e não só os SMB: cada um abre direto no
-        // servidor, como no celular. Cadastrar e editar ficam no último cartão.
+        // O Início é o que está no aparelho; cada servidor vai para a barra
+        // de cima (Ajustes › Dock). Aqui fica só o cartão de cadastrar.
         item(key = "servidores") {
             Faixa(stringResource(R.string.servidores)) {
-                items(atalhos, key = { it.chave }) { atalho ->
-                    CartaoServidor(
-                        atalho,
-                        if (historico.isEmpty() && atalho === atalhos.first()) Modifier.focusRequester(primeiroFoco) else Modifier,
-                    ) { onAtalho(atalho) }
-                }
                 item {
                     CartaoAcao(
                         titulo = stringResource(if (atalhos.isEmpty()) R.string.conectar_servidor else R.string.gerenciar_servidores),
-                        modifier = if (historico.isEmpty() && atalhos.isEmpty()) Modifier.focusRequester(primeiroFoco) else Modifier,
+                        modifier = Modifier.focusRequester(primeiroFoco),
                         onClick = onOpenServers,
                     )
                 }

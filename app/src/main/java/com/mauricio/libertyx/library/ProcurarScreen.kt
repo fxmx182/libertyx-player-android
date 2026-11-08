@@ -82,7 +82,10 @@ fun ProcurarScreen() {
     }
 
     // Uma lista por servidor, na ordem em que foram salvos.
-    var remotos by remember { mutableStateOf<List<Pair<ContaDeRede, List<MediaItem>>>>(emptyList()) }
+    var remotos by remember { mutableStateOf<List<Pair<ContaDeRede, List<ServidorDeMidia.Item>>>>(emptyList()) }
+    // Do servidor, cada achado abre a página dele — o filme com a sinopse e o
+    // "Assistir", a série com as temporadas —, por cima da busca.
+    var abrindo by remember { mutableStateOf<Pair<ContaDeRede, ServidorDeMidia.Item>?>(null) }
     var buscando by remember { mutableStateOf(false) }
     LaunchedEffect(limpo) {
         remotos = emptyList()
@@ -97,17 +100,14 @@ fun ProcurarScreen() {
         remotos = contas.mapNotNull { conta ->
             val achados = runCatching { ServidorDeMidia(conta, loja.segredo(conta)).buscar(limpo) }
                 .getOrDefault(emptyList())
-            achados.map {
-                val origem = MediaOrigin.Midia(conta.id, it.id)
-                MediaItem(
-                    id = origem.resumeKey,
-                    // Episódio solto não diz nada sem a série na frente.
-                    title = it.serie?.let { serie -> "$serie · ${it.titulo}" } ?: it.titulo,
-                    origin = origem, modifiedAt = it.criado, duration = it.duracao,
-                )
-            }.takeIf { lista -> lista.isNotEmpty() }?.let { conta to it }
+            achados.takeIf { lista -> lista.isNotEmpty() }?.let { conta to it }
         }
         buscando = false
+    }
+
+    abrindo?.let { (conta, item) ->
+        com.mauricio.libertyx.rede.ContaScreen(conta, onBack = { abrindo = null }, abrir = item)
+        return
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -135,7 +135,14 @@ fun ProcurarScreen() {
             remotos.forEach { (conta, achados) ->
                 item(key = "s" + conta.id) { Secao(conta.nome, achados.size.toString()) }
                 items(achados, key = { "r" + it.id }) { item ->
-                    LinhaDeVideo(item) { Playback.start(contexto, item, achados) }
+                    val origem = MediaOrigin.Midia(conta.id, item.id)
+                    val video = MediaItem(
+                        id = origem.resumeKey,
+                        // Episódio solto não diz nada sem a série na frente.
+                        title = item.serie?.let { serie -> "$serie · ${item.titulo}" } ?: item.titulo,
+                        origin = origem, modifiedAt = item.criado, duration = item.duracao,
+                    )
+                    LinhaDeVideo(video) { abrindo = conta to item }
                 }
                 item(key = "e" + conta.id) { Spacer(Modifier.height(14.dp)) }
             }

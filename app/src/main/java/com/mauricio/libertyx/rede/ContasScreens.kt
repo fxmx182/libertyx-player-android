@@ -28,6 +28,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.FilterAlt
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Dns
@@ -80,6 +83,8 @@ import com.mauricio.libertyx.R
 import com.mauricio.libertyx.core.Device
 import com.mauricio.libertyx.core.Escala
 import com.mauricio.libertyx.core.LabTheme
+import com.mauricio.libertyx.library.MenuDoItem
+import com.mauricio.libertyx.library.OpcaoDoMenu
 import com.mauricio.libertyx.core.MediaItem
 import com.mauricio.libertyx.core.MediaOrigin
 import com.mauricio.libertyx.core.resumeKey
@@ -232,6 +237,61 @@ fun EditorDeConta(
     var mostrarSenha by remember { mutableStateOf(false) }
     var testando by remember { mutableStateOf(false) }
     var falha by remember { mutableStateOf<String?>(null) }
+    /** Os usuários que o servidor mostra na tela de entrada dele. */
+    var usuarios by remember { mutableStateOf<List<String>>(emptyList()) }
+    var escolhendoUsuario by remember { mutableStateOf(false) }
+    /** O código do Quick Connect enquanto espera a aprovação. */
+    var codigoQuick by remember { mutableStateOf<String?>(null) }
+    var tarefaQuick by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+
+    fun candidatos(): List<String> {
+        val texto = endereco.trim()
+        return if (texto.startsWith("http://", true) || texto.startsWith("https://", true)) listOf(texto)
+        else listOf("https://$texto", "http://$texto")
+    }
+
+    // Espera a pessoa parar de digitar o endereço e pergunta quem pode entrar.
+    LaunchedEffect(endereco) {
+        usuarios = emptyList()
+        if (!tipo.ehServidorDeMidia || endereco.isBlank()) return@LaunchedEffect
+        kotlinx.coroutines.delay(700)
+        for (candidato in candidatos()) {
+            val nomes = ServidorDeMidia.usuariosVisiveis(ContaDeRede(tipo = tipo, nome = "", endereco = candidato))
+            if (nomes.isNotEmpty()) { usuarios = nomes; break }
+        }
+    }
+
+    /**
+     * Entrar sem digitar a senha: o app mostra um código, e alguém já
+     * conectado a este servidor (no app dele ou no navegador) aprova.
+     */
+    fun quickConnect() {
+        falha = null
+        tarefaQuick?.cancel()
+        tarefaQuick = escopo.launch {
+            val lista = candidatos()
+            for ((i, candidato) in lista.withIndex()) {
+                val provisoria = (conta ?: ContaDeRede(tipo = tipo, nome = "", endereco = "")).copy(endereco = candidato)
+                val resultado = runCatching {
+                    val (codigo, segredo) = ServidorDeMidia.iniciarQuickConnect(provisoria)
+                    codigoQuick = codigo
+                    val (nomeDoUsuario, idUsuario, token) = ServidorDeMidia.esperarQuickConnect(provisoria, segredo)
+                    val nova = provisoria.copy(
+                        usuario = nomeDoUsuario, idNoServidor = idUsuario,
+                        nome = nome.trim().ifEmpty { provisoria.enderecoCurto },
+                    )
+                    loja.salvar(nova, token)
+                }
+                val erro = resultado.exceptionOrNull()
+                if (erro == null) { codigoQuick = null; onSalvo(); return@launch }
+                if (erro is CancellationException) { codigoQuick = null; throw erro }
+                if (erro is java.io.IOException && i < lista.lastIndex) continue
+                falha = erro.message ?: erro.javaClass.simpleName
+                codigoQuick = null
+                return@launch
+            }
+        }
+    }
 
     val exemplo = if (tipo == ContaDeRede.Tipo.WEBDAV) "https://nuvem.exemplo.com/remote.php/dav/files/usuario/"
     else "http://192.168.0.10:8096"
@@ -324,6 +384,9 @@ fun EditorDeConta(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                if (usuarios.isNotEmpty()) {
+                    TextButton(onClick = { escolhendoUsuario = true }) { Text(stringResource(R.string.escolher_usuario)) }
+                }
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = senha, onValueChange = { senha = it },
@@ -347,6 +410,28 @@ fun EditorDeConta(
                     Checkbox(checked = mostrarSenha, onCheckedChange = { mostrarSenha = it })
                     Text(stringResource(R.string.mostrar_senha), color = LabTheme.text, fontSize = 13.sp)
                 }
+                if (tipo.ehServidorDeMidia) {
+                    val codigo = codigoQuick
+                    if (codigo != null) {
+                        Text(stringResource(R.string.qc_aprove), color = LabTheme.muted, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                        Text(
+                            codigo, color = LabTheme.text, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 6.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            modifier = Modifier.padding(vertical = 6.dp),
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.qc_esperando), color = LabTheme.muted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                            TextButton(onClick = { tarefaQuick?.cancel(); codigoQuick = null }) { Text(stringResource(R.string.cancelar)) }
+                        }
+                    } else {
+                        TextButton(enabled = endereco.isNotBlank() && !testando, onClick = ::quickConnect) {
+                            Text(stringResource(R.string.qc_entrar))
+                        }
+                        Text(stringResource(R.string.qc_explica), color = LabTheme.faint, fontSize = 11.5.sp)
+                    }
+                }
                 falha?.let {
                     Text(it, color = Color(0xFFFFA94D), fontSize = 13.sp, modifier = Modifier.padding(vertical = 6.dp))
                 }
@@ -367,9 +452,20 @@ fun EditorDeConta(
             }
         },
         dismissButton = {
-            TextButton(enabled = !testando, onClick = onCancel) { Text(stringResource(R.string.cancelar)) }
+            TextButton(enabled = !testando, onClick = { tarefaQuick?.cancel(); onCancel() }) { Text(stringResource(R.string.cancelar)) }
         },
     )
+
+    if (escolhendoUsuario) {
+        MenuDoItem(stringResource(R.string.escolher_usuario), { escolhendoUsuario = false }) {
+            usuarios.forEachIndexed { i, nomeDoUsuario ->
+                OpcaoDoMenu(nomeDoUsuario, primeira = i == 0) {
+                    usuario = nomeDoUsuario
+                    escolhendoUsuario = false
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -398,6 +494,19 @@ private sealed interface Nivel {
     data class Pasta(override val nome: String, val caminho: String) : Nivel
     data class Bibliotecas(override val nome: String) : Nivel
     data class Item(override val nome: String, val item: ServidorDeMidia.Item) : Nivel
+    /** Jellyfin e Emby: a página de um filme ou episódio, da série, da pessoa, e os canais. */
+    data class Video(override val nome: String, val item: ServidorDeMidia.Item) : Nivel
+    /** [item]: a série como veio na lista, para a capa na pasta. */
+    data class Serie(override val nome: String, val id: String, val item: ServidorDeMidia.Item? = null) : Nivel
+    data class Pessoa(override val nome: String, val pessoa: ServidorDeMidia.Pessoa) : Nivel
+    data class Canais(override val nome: String) : Nivel
+}
+
+/** Para onde leva um item do servidor: vídeo e série têm página; o resto é pasta. */
+private fun nivelDe(item: ServidorDeMidia.Item): Nivel = when {
+    item.ehVideo -> Nivel.Video(item.titulo, item)
+    item.tipo == "Series" -> Nivel.Serie(item.nome, item.id, item)
+    else -> Nivel.Item(item.titulo, item)
 }
 
 private data class Conteudo(
@@ -405,6 +514,7 @@ private data class Conteudo(
     val videos: List<MediaItem>,
     /** Jellyfin e Emby: o item do servidor por trás de cada vídeo, para o "Já reproduzido". */
     val doServidor: Map<String, ServidorDeMidia.Item> = emptyMap(),
+    val ordemDoServidor: Boolean = false,
 )
 
 /**
@@ -413,7 +523,7 @@ private data class Conteudo(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit) {
+fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit, abrir: ServidorDeMidia.Item? = null) {
     val contexto = LocalContext.current
     val loja = remember { ContasDeRede.get(contexto) }
     val naTv = remember { Device.isTv(contexto) }
@@ -424,7 +534,8 @@ fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit) {
         if (conta.tipo == ContaDeRede.Tipo.WEBDAV) Nivel.Pasta(conta.nome, WebDav(conta, null).raiz)
         else Nivel.Bibliotecas(conta.nome)
     }
-    var pilha by remember(conta.id) { mutableStateOf(listOf(inicio)) }
+    // [abrir]: vindo da busca, a conta abre já na página do item; voltar sai.
+    var pilha by remember(conta.id, abrir?.id) { mutableStateOf(listOfNotNull(abrir?.let(::nivelDe) ?: inicio)) }
     val atual = pilha.last()
 
     var conteudo by remember { mutableStateOf<Conteudo?>(null) }
@@ -438,13 +549,25 @@ fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit) {
     // sem apagar a tela, e as barrinhas de onde parou se refazem.
     var recarga by remember { mutableIntStateOf(0) }
     val escopo = rememberCoroutineScope()
+    // Biblioteca de filmes ou séries: ordem e filtros do servidor.
+    var filtro by remember(atual) { mutableStateOf(ServidorDeMidia.Filtro()) }
+    var generos by remember(atual) { mutableStateOf<List<String>>(emptyList()) }
+    var mostrandoFiltro by remember { mutableStateOf(false) }
+    val biblioteca = (atual as? Nivel.Item)?.item?.takeIf { it.tipoDeColecao == "movies" || it.tipoDeColecao == "tvshows" }
+    LaunchedEffect(biblioteca?.id) {
+        val b = biblioteca ?: return@LaunchedEffect
+        generos = servidorDaConta?.let { runCatching { it.generos(b) }.getOrNull() }.orEmpty()
+    }
 
-    LaunchedEffect(atual) {
+    LaunchedEffect(atual, filtro) {
         conteudo = null
         erro = null
-        // O começo de um Jellyfin ou Emby é a tela de faixas, que se carrega sozinha.
-        if (atual is Nivel.Bibliotecas) return@LaunchedEffect
-        runCatching { ler(conta, loja.segredo(conta), atual) }
+        // O começo de um Jellyfin ou Emby é a tela de faixas, que se carrega
+        // sozinha; as páginas também.
+        if (atual is Nivel.Bibliotecas || atual is Nivel.Video || atual is Nivel.Serie ||
+            atual is Nivel.Pessoa || atual is Nivel.Canais
+        ) return@LaunchedEffect
+        runCatching { ler(conta, loja.segredo(conta), atual, filtro.takeIf { biblioteca != null }) }
             .onSuccess { conteudo = it }
             .onFailure {
                 // Cancelada não é falha: trocou de pasta no meio da leitura.
@@ -482,7 +605,16 @@ fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit) {
                         }
                     },
                     actions = {
-                        if (!naTv && atual !is Nivel.Bibliotecas) {
+                        if (biblioteca != null) {
+                            IconButton(onClick = { mostrandoFiltro = true }) {
+                                Icon(
+                                    if (filtro.ativo) Icons.Filled.FilterAlt else Icons.Filled.FilterList,
+                                    contentDescription = stringResource(R.string.ft_filtros),
+                                    tint = if (filtro.ativo) LabTheme.accent else LabTheme.muted,
+                                )
+                            }
+                        }
+                        if (!naTv && (atual is Nivel.Pasta || atual is Nivel.Item)) {
                             IconButton(onClick = { mostrandoOpcoes = true }) {
                                 Icon(Icons.Filled.Tune, contentDescription = stringResource(R.string.exibicao))
                             }
@@ -500,7 +632,27 @@ fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit) {
             Box(Modifier.padding(padding).fillMaxSize()) {
                 val pronto = conteudo
                 when {
-                    atual is Nivel.Bibliotecas -> InicioDoServidor(conta) { pilha = pilha + Nivel.Item(it.titulo, it) }
+                    atual is Nivel.Bibliotecas -> InicioDoServidor(
+                        conta,
+                        onAbrir = { pilha = pilha + nivelDe(it) },
+                        onCanais = { pilha = pilha + Nivel.Canais(contexto.getString(R.string.tv_ao_vivo)) },
+                    )
+                    atual is Nivel.Video && servidorDaConta != null -> PaginaDoVideo(
+                        conta, servidorDaConta, atual.item,
+                        onSerie = { id, nome -> pilha = pilha + Nivel.Serie(nome, id) },
+                        onPessoa = { pilha = pilha + Nivel.Pessoa(it.nome, it) },
+                        // Outro episódio da temporada troca de página, sem empilhar.
+                        onVideo = { pilha = pilha.dropLast(1) + Nivel.Video(it.titulo, it) },
+                    )
+                    atual is Nivel.Serie && servidorDaConta != null -> PaginaDaSerie(
+                        conta, servidorDaConta, atual.id, atual.nome,
+                        onEpisodio = { pilha = pilha + Nivel.Video(it.titulo, it) },
+                        onPessoa = { pilha = pilha + Nivel.Pessoa(it.nome, it) },
+                    )
+                    atual is Nivel.Pessoa && servidorDaConta != null -> PaginaDaPessoa(servidorDaConta, atual.pessoa) {
+                        pilha = pilha + nivelDe(it)
+                    }
+                    atual is Nivel.Canais && servidorDaConta != null -> PaginaDosCanais(conta, servidorDaConta)
                     erro != null -> Text(
                         erro!!,
                         color = LabTheme.muted, textAlign = TextAlign.Center, fontSize = 13.sp,
@@ -513,6 +665,7 @@ fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit) {
                         naTv = naTv,
                         volta = recarga,
                         onAbrir = { pilha = pilha + it },
+                        onVideo = { pilha = pilha + Nivel.Video(it.titulo, it) },
                         onOpcoes = { mostrandoOpcoes = true },
                         onMenu = { video -> pronto.doServidor[video.id]?.let { menuDe = it } },
                         servidor = servidorDaConta,
@@ -531,6 +684,10 @@ fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit) {
                 runCatching { ler(conta, loja.segredo(conta), atual) }.onSuccess { conteudo = it }
             }
         }
+    }
+
+    if (mostrandoFiltro) {
+        MenuDeFiltro(filtro, generos, onMudar = { filtro = it }, onFechar = { mostrandoFiltro = false })
     }
 
     if (mostrandoOpcoes) {
@@ -553,7 +710,7 @@ fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit) {
     }
 }
 
-private suspend fun ler(conta: ContaDeRede, segredo: String?, nivel: Nivel): Conteudo = when (nivel) {
+private suspend fun ler(conta: ContaDeRede, segredo: String?, nivel: Nivel, filtro: ServidorDeMidia.Filtro? = null): Conteudo = when (nivel) {
     is Nivel.Pasta -> {
         val entradas = WebDav(conta, segredo).listar(nivel.caminho)
         Conteudo(
@@ -575,11 +732,14 @@ private suspend fun ler(conta: ContaDeRede, segredo: String?, nivel: Nivel): Con
         },
         videos = emptyList(),
     )
+    is Nivel.Video, is Nivel.Serie, is Nivel.Pessoa, is Nivel.Canais -> Conteudo(emptyList(), emptyList())
     is Nivel.Item -> {
-        val itens = ServidorDeMidia(conta, segredo).itens(nivel.item)
+        val servidor = ServidorDeMidia(conta, segredo)
+        val itens = if (filtro != null) servidor.itens(nivel.item, filtro) else servidor.itens(nivel.item)
         Conteudo(
+            ordemDoServidor = filtro != null,
             doServidor = itens.filter { it.ehVideo }.associateBy { MediaOrigin.Midia(conta.id, it.id).resumeKey },
-            pastas = itens.filter { it.ehPasta }.map { Nivel.Item(it.titulo, it) to iconeDoTipo(it.tipo) },
+            pastas = itens.filter { it.ehPasta }.map { nivelDe(it) to iconeDoTipo(it.tipo) },
             videos = itens.filter { it.ehVideo }.map {
                 val origem = MediaOrigin.Midia(conta.id, it.id)
                 MediaItem(
@@ -610,6 +770,7 @@ private fun Pasta(
     naTv: Boolean,
     volta: Int,
     onAbrir: (Nivel) -> Unit,
+    onVideo: (ServidorDeMidia.Item) -> Unit,
     onOpcoes: () -> Unit,
     onMenu: (MediaItem) -> Unit,
     servidor: ServidorDeMidia?,
@@ -621,8 +782,14 @@ private fun Pasta(
     // natural — então a ordem padrão já é a da temporada.
     val videos = remember(conteudo, opcoes.sort, opcoes.ascending) {
         Snapshot.withoutReadObservation {
-            opcoes.sorted(conteudo.videos.map { it.copy(duration = it.duration ?: Thumbnails.duracao(contexto, it)) })
+            val comDuracao = conteudo.videos.map { it.copy(duration = it.duration ?: Thumbnails.duracao(contexto, it)) }
+            // Na biblioteca filtrada a ordem é a do servidor (nota, data, gênero).
+            if (conteudo.ordemDoServidor) comDuracao else opcoes.sorted(comDuracao)
         }
+    }
+    /** Do Jellyfin e do Emby, o vídeo abre a página dele; do WebDAV, toca. */
+    val tocarOuAbrir = { item: MediaItem ->
+        conteudo.doServidor[item.id]?.let(onVideo) ?: Playback.start(contexto, item, videos)
     }
 
     if (conteudo.pastas.isEmpty() && videos.isEmpty()) {
@@ -647,11 +814,12 @@ private fun Pasta(
             }
             items(
                 conteudo.pastas, key = { it.first.hashCode() },
-                span = { (nivel, _) -> if (servidor != null && nivel is Nivel.Item) GridItemSpan(1) else GridItemSpan(maxLineSpan) },
+                span = { (nivel, _) -> if (servidor != null && doServidor(nivel) != null) GridItemSpan(1) else GridItemSpan(maxLineSpan) },
             ) { (nivel, icone) ->
-                if (servidor != null && nivel is Nivel.Item) {
+                val item = doServidor(nivel)
+                if (servidor != null && item != null) {
                     Box(Modifier.padding(bottom = 8.dp)) {
-                        CapaDePastaDoServidor(servidor, nivel.item, { onAbrir(nivel) }, { onMenuDaPasta(nivel.item) })
+                        CapaDePastaDoServidor(servidor, item, { onAbrir(nivel) }, { onMenuDaPasta(item) })
                     }
                 } else {
                     LinhaDePasta(nivel.nome, icone) { onAbrir(nivel) }
@@ -659,7 +827,7 @@ private fun Pasta(
             }
             items(videos, key = { it.id }) { item ->
                 Box(Modifier.padding(bottom = 8.dp)) {
-                    CartaoDeVideo(item, volta, onOpcoes = menuDe(conteudo, item, onMenu)) { Playback.start(contexto, item, videos) }
+                    CartaoDeVideo(item, volta, onOpcoes = menuDe(conteudo, item, onMenu)) { tocarOuAbrir(item) }
                 }
             }
         }
@@ -670,18 +838,26 @@ private fun Pasta(
             }
             items(conteudo.pastas, key = { it.first.hashCode() }) { (nivel, icone) ->
                 Box(Modifier.padding(horizontal = 12.dp)) {
-                    if (servidor != null && nivel is Nivel.Item) {
-                        LinhaDePastaDoServidor(servidor, nivel.item, { onAbrir(nivel) }, { onMenuDaPasta(nivel.item) })
+                    val item = doServidor(nivel)
+                    if (servidor != null && item != null) {
+                        LinhaDePastaDoServidor(servidor, item, { onAbrir(nivel) }, { onMenuDaPasta(item) })
                     } else {
                         LinhaDePasta(nivel.nome, icone) { onAbrir(nivel) }
                     }
                 }
             }
             items(videos, key = { it.id }) { item ->
-                LinhaDeVideo(item, volta, onOpcoes = menuDe(conteudo, item, onMenu)) { Playback.start(contexto, item, videos) }
+                LinhaDeVideo(item, volta, onOpcoes = menuDe(conteudo, item, onMenu)) { tocarOuAbrir(item) }
             }
         }
     }
+}
+
+/** A série, temporada ou coleção do servidor por trás da pasta — a que ganha capa. */
+private fun doServidor(nivel: Nivel): ServidorDeMidia.Item? = when (nivel) {
+    is Nivel.Item -> nivel.item
+    is Nivel.Serie -> nivel.item
+    else -> null
 }
 
 /** Só vídeo do Jellyfin ou do Emby tem menu; no WebDAV, segurar não faz nada. */
@@ -729,5 +905,45 @@ private fun LinhaDePasta(nome: String, icone: ImageVector, onClick: () -> Unit) 
             maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
         )
         Icon(Icons.Filled.ChevronRight, null, tint = LabTheme.faint, modifier = Modifier.size(20.dp))
+    }
+}
+
+/** Ordem, não vistos, favoritos e gênero — os filtros do app do Jellyfin. */
+@Composable
+private fun MenuDeFiltro(
+    filtro: ServidorDeMidia.Filtro,
+    generos: List<String>,
+    onMudar: (ServidorDeMidia.Filtro) -> Unit,
+    onFechar: () -> Unit,
+) {
+    MenuDoItem(stringResource(R.string.ft_filtros), onFechar) {
+        val ordens = listOf(
+            ServidorDeMidia.Filtro.Ordem.NOME to R.string.ft_nome,
+            ServidorDeMidia.Filtro.Ordem.ADICIONADO to R.string.ft_adicionado,
+            ServidorDeMidia.Filtro.Ordem.LANCAMENTO to R.string.ft_lancamento,
+            ServidorDeMidia.Filtro.Ordem.NOTA to R.string.ft_nota,
+            ServidorDeMidia.Filtro.Ordem.ALEATORIO to R.string.ft_aleatorio,
+        )
+        Text(stringResource(R.string.ft_ordenar), color = LabTheme.muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+        ordens.forEachIndexed { i, (ordem, nome) ->
+            OpcaoDoMenu(stringResource(nome), icone = if (filtro.ordem == ordem) Icons.Filled.Check else null, primeira = i == 0) {
+                onMudar(filtro.copy(ordem = ordem))
+            }
+        }
+        OpcaoDoMenu(stringResource(R.string.ft_decrescente), marcado = filtro.decrescente) { onMudar(filtro.copy(decrescente = !filtro.decrescente)) }
+        OpcaoDoMenu(stringResource(R.string.ft_nao_vistos), marcado = filtro.naoVistos) { onMudar(filtro.copy(naoVistos = !filtro.naoVistos)) }
+        OpcaoDoMenu(stringResource(R.string.ft_favoritos), marcado = filtro.favoritos) { onMudar(filtro.copy(favoritos = !filtro.favoritos)) }
+        if (generos.isNotEmpty()) {
+            Text(stringResource(R.string.ft_genero), color = LabTheme.muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+            OpcaoDoMenu(stringResource(R.string.ft_todos_generos), icone = if (filtro.genero == null) Icons.Filled.Check else null) {
+                onMudar(filtro.copy(genero = null))
+            }
+            generos.forEach { genero ->
+                OpcaoDoMenu(genero, icone = if (filtro.genero == genero) Icons.Filled.Check else null) { onMudar(filtro.copy(genero = genero)) }
+            }
+        }
+        if (filtro.ativo) {
+            OpcaoDoMenu(stringResource(R.string.ft_limpar)) { onMudar(ServidorDeMidia.Filtro()) }
+        }
     }
 }

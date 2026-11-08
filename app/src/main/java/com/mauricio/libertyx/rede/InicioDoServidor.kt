@@ -97,7 +97,7 @@ import com.mauricio.libertyx.rede.ServidorDeMidia.Item
  * para quem prefere procurar pelo catálogo inteiro.
  */
 @Composable
-fun InicioDoServidor(conta: ContaDeRede, onAbrir: (Item) -> Unit) {
+fun InicioDoServidor(conta: ContaDeRede, onAbrir: (Item) -> Unit, onCanais: () -> Unit = {}) {
     val contexto = LocalContext.current
     val servidor = remember(conta.id) {
         val loja = ContasDeRede.get(contexto)
@@ -136,23 +136,19 @@ fun InicioDoServidor(conta: ContaDeRede, onAbrir: (Item) -> Unit) {
     }
 
     val escopo = rememberCoroutineScope()
-    var abrindo by remember { mutableStateOf(false) }
-    val abrir: (Item) -> Unit = abrir@{ item ->
-        if (!item.ehVideo) {
-            onAbrir(item)
-            return@abrir
-        }
-        if (abrindo) return@abrir
-        abrindo = true
+    // Filme e episódio abrem a página deles, como no app do servidor; o
+    // "Assistir" está lá.
+    val abrir: (Item) -> Unit = { onAbrir(it) }
+    var abrindoCanal by remember { mutableStateOf(false) }
+    val tocar: (ServidorDeMidia.Canal) -> Unit = tocar@{ canal ->
+        if (abrindoCanal) return@tocar
+        abrindoCanal = true
         escopo.launch {
-            // Episódio toca com a temporada em volta, para o "próximo" do
-            // player ir ao episódio seguinte, e não ao vizinho da faixa.
-            val fila = if (item.tipo == "Episode") {
-                runCatching { servidor.temporada(item) }.getOrNull()
-                    ?.takeIf { lista -> lista.any { it.id == item.id } } ?: listOf(item)
-            } else listOf(item)
-            abrindo = false
-            Playback.start(contexto, paraTocar(conta, item), fila.map { paraTocar(conta, it) })
+            runCatching { tocarCanal(contexto, conta, servidor, canal) }.onFailure {
+                if (it is CancellationException) throw it
+                Toast.makeText(contexto, it.message ?: it.javaClass.simpleName, Toast.LENGTH_LONG).show()
+            }
+            abrindoCanal = false
         }
     }
 
@@ -184,6 +180,17 @@ fun InicioDoServidor(conta: ContaDeRede, onAbrir: (Item) -> Unit) {
                             val primeiro = pronto.continuar.isEmpty() && it === pronto.aSeguir.first()
                             CartaoDeitado(servidor, it, abrir, noTopo(primeiro, topo)) { menuDe = it }
                         }
+                    }
+                }
+                // Só quando o servidor tem TV ao vivo configurada.
+                if (pronto.canais.isNotEmpty()) item(key = "canais") {
+                    Faixa(stringResource(R.string.tv_ao_vivo), onTitulo = onCanais) {
+                        items(pronto.canais, key = { it.id }) { canal -> CartaoDeCanal(servidor, canal) { tocar(canal) } }
+                    }
+                }
+                if (pronto.favoritos.isNotEmpty()) item(key = "favoritos") {
+                    Faixa(stringResource(R.string.pg_favoritos)) {
+                        items(pronto.favoritos, key = { it.id }) { Cartaz(servidor, it, abrir) { menuDe = it } }
                     }
                 }
                 item(key = "bibliotecas") {
@@ -259,6 +266,8 @@ private fun noTopo(primeiro: Boolean, topo: FocusRequester): Modifier =
 private class Inicio(
     val continuar: List<Item>,
     val aSeguir: List<Item>,
+    val favoritos: List<Item>,
+    val canais: List<ServidorDeMidia.Canal>,
     val bibliotecas: List<Item>,
     val recentes: List<Pair<Item, List<Item>>>,
 )
@@ -274,6 +283,8 @@ private suspend fun carregar(servidor: ServidorDeMidia): Inicio = coroutineScope
     AvisoAoServidor.emDia()
     val continuar = async { runCatching { servidor.continuar() }.getOrDefault(emptyList()) }
     val aSeguir = async { runCatching { servidor.aSeguir() }.getOrDefault(emptyList()) }
+    val favoritos = async { runCatching { servidor.favoritos() }.getOrDefault(emptyList()) }
+    val canais = async { runCatching { servidor.canais(limite = 30) }.getOrDefault(emptyList()) }
     val bibliotecas = servidor.bibliotecas()
     val recentes = bibliotecas
         // Coleções só repetem filmes que já aparecem na biblioteca deles.
@@ -284,6 +295,8 @@ private suspend fun carregar(servidor: ServidorDeMidia): Inicio = coroutineScope
         continuar = continuar.await(),
         // O servidor põe no "A seguir" o episódio que já está no "Continuar".
         aSeguir = aSeguir.await().filter { it.id !in comecados },
+        favoritos = favoritos.await(),
+        canais = canais.await(),
         bibliotecas = bibliotecas,
         recentes = recentes.awaitAll().filter { it.second.isNotEmpty() },
     )
@@ -329,7 +342,7 @@ private fun Faixa(titulo: String, onTitulo: (() -> Unit)? = null, conteudo: Lazy
 
 /** "Continuar" e "A seguir": a cena deitada, com o quanto falta. */
 @Composable
-private fun CartaoDeitado(
+internal fun CartaoDeitado(
     servidor: ServidorDeMidia,
     item: Item,
     onClick: (Item) -> Unit,
@@ -345,6 +358,13 @@ private fun CartaoDeitado(
             // O "Primary" do episódio já é uma cena; o do filme é o cartaz em pé.
             val tipos = if (item.tipo == "Episode") listOf("Primary", "Thumb") else listOf("Thumb", "Backdrop", "Primary")
             ImagemDoServidor(servidor, item.id, tipos, 480, Modifier.fillMaxSize())
+            if (item.visto) {
+                Icon(
+                    Icons.Filled.Check, null, tint = Color.Black,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).size(20.dp)
+                        .clip(CircleShape).background(LabTheme.accent).padding(3.dp),
+                )
+            }
             Progresso(item.progresso)
         }
         Spacer(Modifier.height(8.dp))
@@ -363,7 +383,7 @@ private fun CartaoDeitado(
 }
 
 @Composable
-private fun numeroDoEpisodio(item: Item): String? {
+internal fun numeroDoEpisodio(item: Item): String? {
     val temporada = item.temporada ?: return null
     val numero = item.numero ?: return null
     return stringResource(R.string.episodio_curto, temporada, numero)
@@ -371,7 +391,7 @@ private fun numeroDoEpisodio(item: Item): String? {
 
 /** "Recentes": o cartaz em pé, com os episódios por ver ou a marca de visto. */
 @Composable
-private fun Cartaz(servidor: ServidorDeMidia, item: Item, onClick: (Item) -> Unit, onOpcoes: (Item) -> Unit) {
+internal fun Cartaz(servidor: ServidorDeMidia, item: Item, onClick: (Item) -> Unit, onOpcoes: (Item) -> Unit) {
     val forma = RoundedCornerShape(10.dp)
     Column(
         Modifier.width(112.dp * Escala.fator()).tvFocus(10.dp)
@@ -421,7 +441,7 @@ private fun CartaoDeBiblioteca(servidor: ServidorDeMidia, biblioteca: Item, onCl
 }
 
 @Composable
-private fun BoxScope.Progresso(progresso: Float?) {
+internal fun BoxScope.Progresso(progresso: Float?) {
     if (progresso == null) return
     Box(
         Modifier.align(Alignment.BottomStart).fillMaxWidth().height(3.dp)
@@ -544,9 +564,17 @@ internal fun ImagemDoServidor(
     val chave = "${servidor.contaId}/$id/${tipos.joinToString(",")}"
     val imagem by produceState(CapasDoServidor.cache.get(chave), chave) {
         if (value != null || chave in CapasDoServidor.falharam) return@produceState
-        val baixada = CapasDoServidor.limite.withPermit { servidor.imagem(id, tipos, largura) }
-        if (baixada != null) CapasDoServidor.cache.put(chave, baixada) else CapasDoServidor.falharam += chave
-        value = baixada
+        when (val baixada = CapasDoServidor.limite.withPermit { servidor.baixarImagem(id, tipos, largura) }) {
+            is ServidorDeMidia.ImagemBaixada.Pronta -> {
+                CapasDoServidor.cache.put(chave, baixada.bitmap)
+                value = baixada.bitmap
+            }
+            // Só o "não tem" é para sempre. Caído no caminho — ou cancelado
+            // porque a capa saiu da tela — tenta de novo quando ela voltar;
+            // antes isso também marcava "sem imagem" até fechar o app.
+            ServidorDeMidia.ImagemBaixada.NaoTem -> CapasDoServidor.falharam += chave
+            ServidorDeMidia.ImagemBaixada.Falhou -> {}
+        }
     }
     Box(
         modifier.background(Brush.linearGradient(listOf(Color(0xFF232228), Color(0xFF16161A)))),

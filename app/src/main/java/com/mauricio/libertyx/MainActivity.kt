@@ -49,6 +49,10 @@ import com.mauricio.libertyx.library.Aba
 import com.mauricio.libertyx.library.AjustesScreen
 import com.mauricio.libertyx.library.ArquivosScreen
 import com.mauricio.libertyx.library.Dock
+import com.mauricio.libertyx.library.itensDaDock
+import com.mauricio.libertyx.rede.ContasDeRede
+import com.mauricio.libertyx.smb.SmbServerStore
+import androidx.compose.runtime.key
 import com.mauricio.libertyx.library.LocalDock
 import com.mauricio.libertyx.library.ProcurarScreen
 import com.mauricio.libertyx.rede.GrupoDeServidores
@@ -108,7 +112,12 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun App() {
     var tela by remember { mutableStateOf<Screen>(Screen.Library) }
-    var aba by rememberSaveable { mutableStateOf(Aba.INICIO) }
+    var chaveDaAba by rememberSaveable { mutableStateOf(Aba.Inicio.chave) }
+    // A dock é montada em Ajustes › Dock: Início, até três escolhidas e Ajustes.
+    val itens = itensDaDock()
+    // A aba aberta saiu da dock (ou o servidor foi apagado): volta ao Início.
+    val aba = Aba.de(chaveDaAba)?.takeIf { a -> itens.any { it.aba == a } } ?: Aba.Inicio
+    val mudarAba = { nova: Aba -> chaveDaAba = nova.chave }
 
     // O botão "voltar" do Android tem que voltar dentro do app, e não sair
     // dele. Sem isto, sair da tela de servidores fecha o LibertyX — e como a
@@ -152,10 +161,10 @@ private fun App() {
                 is Screen.Library -> {
                     // Voltar numa aba que não é a primeira leva ao Início, e só de lá
                     // o app fecha — como em todo app de abas do Android.
-                    BackHandler(enabled = aba != Aba.INICIO) { aba = Aba.INICIO }
+                    BackHandler(enabled = aba != Aba.Inicio) { mudarAba(Aba.Inicio) }
                     val conteudo = @Composable {
                         TelaDaAba(
-                            aba, naTv, onAba = { aba = it },
+                            aba, naTv, onAba = mudarAba,
                             abrirServidores = abrirServidores, abrirAtalho = abrirAtalho,
                             // Na TV não há guia: o controle remoto já é o guia.
                             onGuia = if (naTv) null else ({ mostrandoGuia = true }),
@@ -163,7 +172,7 @@ private fun App() {
                     }
                     if (naTv) {
                         Column(Modifier.fillMaxSize().background(LabTheme.background)) {
-                            AbasDaTv(aba, onAba = { aba = it })
+                            AbasDaTv(itens, aba, onAba = mudarAba)
                             Box(Modifier.weight(1f).fillMaxWidth()) { conteudo() }
                         }
                     } else {
@@ -190,8 +199,8 @@ private fun App() {
         }
         if (!naTv) {
             Dock(
-                aba,
-                onAba = { aba = it; tela = Screen.Library },
+                itens, aba,
+                onAba = { mudarAba(it); tela = Screen.Library },
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
@@ -211,11 +220,12 @@ private fun TelaDaAba(
     abrirAtalho: (AtalhoDeServidor) -> Unit,
     onGuia: (() -> Unit)?,
 ) {
+    val contexto = LocalContext.current
     when (aba) {
         // Sem a permissão só as abas de vídeo do aparelho trancam:
         // os Ajustes e a busca nos servidores seguem à mão. Na TV nem elas,
         // porque lá o acervo mora no servidor.
-        Aba.INICIO -> if (naTv) {
+        Aba.Inicio -> if (naTv) {
             ComPermissao(bloqueia = false) {
                 TvHomeScreen(onOpenServers = { abrirServidores(GrupoDeServidores.TODOS) }, onAtalho = abrirAtalho)
             }
@@ -227,11 +237,18 @@ private fun TelaDaAba(
                 )
             }
         }
-        Aba.ARQUIVOS -> ComPermissao(bloqueia = !naTv) {
-            ArquivosScreen(onAtalho = abrirAtalho, onAdicionarServidor = { onAba(Aba.AJUSTES) })
+        Aba.Arquivos -> ComPermissao(bloqueia = !naTv) {
+            ArquivosScreen(onAtalho = abrirAtalho, onAdicionarServidor = { onAba(Aba.Ajustes) })
         }
-        Aba.PROCURAR -> ProcurarScreen()
-        Aba.AJUSTES -> AjustesScreen(
+        Aba.Procurar -> ProcurarScreen()
+        // Um servidor na dock abre direto nele; voltar da raiz leva ao Início.
+        is Aba.Conta -> ContasDeRede.get(contexto).byId(aba.id)?.let { conta ->
+            key(aba.chave) { ContaScreen(conta, onBack = { onAba(Aba.Inicio) }) }
+        }
+        is Aba.Smb -> SmbServerStore.get(contexto).byId(aba.id)?.let { servidor ->
+            key(aba.chave) { SmbBrowserScreen(server = servidor, onBack = { onAba(Aba.Inicio) }) }
+        }
+        Aba.Ajustes -> AjustesScreen(
             onServidores = { abrirServidores(GrupoDeServidores.SERVIDORES) },
             onWebDav = { abrirServidores(GrupoDeServidores.WEBDAV) },
             onGuia = onGuia,
