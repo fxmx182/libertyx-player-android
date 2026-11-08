@@ -68,6 +68,10 @@ import com.mauricio.libertyx.library.Secao
 import com.mauricio.libertyx.library.rememberVoltaAoApp
 import com.mauricio.libertyx.player.Playback
 import com.mauricio.libertyx.tv.tvFocus
+import com.mauricio.libertyx.tv.rememberFocoDoCartao
+import com.mauricio.libertyx.tv.recebeFoco
+import com.mauricio.libertyx.tv.cliqueDoCartao
+import com.mauricio.libertyx.tv.realceDoFoco
 import com.mauricio.libertyx.tv.cliqueComOpcoes
 import com.mauricio.libertyx.tv.RolagemDeTv
 import com.mauricio.libertyx.tv.RolagemDeTvNasBordas
@@ -350,11 +354,12 @@ internal fun CartaoDeitado(
     onOpcoes: (Item) -> Unit,
 ) {
     val forma = RoundedCornerShape(12.dp)
+    val foco = rememberFocoDoCartao()
     Column(
-        modifier.width(236.dp * Escala.fator()).tvFocus(12.dp)
+        modifier.width(236.dp * Escala.fator()).recebeFoco(foco)
             .cliqueComOpcoes(onClick = { onClick(item) }, onOpcoes = { onOpcoes(item) }),
     ) {
-        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(forma).border(0.5.dp, LabTheme.glassBorder, forma)) {
+        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).realceDoFoco(foco, 12.dp).clip(forma).border(0.5.dp, LabTheme.glassBorder, forma)) {
             // O "Primary" do episódio já é uma cena; o do filme é o cartaz em pé.
             val tipos = if (item.tipo == "Episode") listOf("Primary", "Thumb") else listOf("Thumb", "Backdrop", "Primary")
             ImagemDoServidor(servidor, item.id, tipos, 480, Modifier.fillMaxSize())
@@ -393,11 +398,12 @@ internal fun numeroDoEpisodio(item: Item): String? {
 @Composable
 internal fun Cartaz(servidor: ServidorDeMidia, item: Item, onClick: (Item) -> Unit, onOpcoes: (Item) -> Unit) {
     val forma = RoundedCornerShape(10.dp)
+    val foco = rememberFocoDoCartao()
     Column(
-        Modifier.width(112.dp * Escala.fator()).tvFocus(10.dp)
+        Modifier.width(112.dp * Escala.fator()).recebeFoco(foco)
             .cliqueComOpcoes(onClick = { onClick(item) }, onOpcoes = { onOpcoes(item) }),
     ) {
-        Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(forma).border(0.5.dp, LabTheme.glassBorder, forma)) {
+        Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).realceDoFoco(foco, 10.dp).clip(forma).border(0.5.dp, LabTheme.glassBorder, forma)) {
             // Episódio solto mostra o cartaz da série: a cena dele, cortada em
             // pé, não diria de onde ele é.
             val id = if (item.tipo == "Episode") item.serieId ?: item.id else item.id
@@ -428,8 +434,9 @@ internal fun Cartaz(servidor: ServidorDeMidia, item: Item, onClick: (Item) -> Un
 @Composable
 private fun CartaoDeBiblioteca(servidor: ServidorDeMidia, biblioteca: Item, onClick: (Item) -> Unit, modifier: Modifier = Modifier) {
     val forma = RoundedCornerShape(12.dp)
-    Column(modifier.width(176.dp * Escala.fator()).tvFocus(12.dp).clickable { onClick(biblioteca) }) {
-        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(forma).border(0.5.dp, LabTheme.glassBorder, forma)) {
+    val foco = rememberFocoDoCartao()
+    Column(modifier.width(176.dp * Escala.fator()).recebeFoco(foco).cliqueDoCartao { onClick(biblioteca) }) {
+        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).realceDoFoco(foco, 12.dp).clip(forma).border(0.5.dp, LabTheme.glassBorder, forma)) {
             ImagemDoServidor(servidor, biblioteca.id, listOf("Primary"), 400, Modifier.fillMaxSize())
         }
         Spacer(Modifier.height(6.dp))
@@ -467,8 +474,9 @@ internal fun CapaDePastaDoServidor(
     onOpcoes: () -> Unit,
 ) {
     val forma = RoundedCornerShape(12.dp)
-    Column(Modifier.fillMaxWidth().tvFocus(12.dp).cliqueComOpcoes(onClick, onOpcoes)) {
-        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(forma).border(0.5.dp, LabTheme.glassBorder, forma)) {
+    val foco = rememberFocoDoCartao()
+    Column(Modifier.fillMaxWidth().recebeFoco(foco).cliqueComOpcoes(onClick, onOpcoes)) {
+        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).realceDoFoco(foco, 12.dp).clip(forma).border(0.5.dp, LabTheme.glassBorder, forma)) {
             ImagemDoServidor(
                 servidor, idDaCapa(item), listOf("Thumb", "Backdrop", "Primary"), 480, Modifier.fillMaxSize(),
                 if (item.tipo == "Series" || item.tipo == "Season") Icons.Filled.Tv else Icons.Filled.Movie,

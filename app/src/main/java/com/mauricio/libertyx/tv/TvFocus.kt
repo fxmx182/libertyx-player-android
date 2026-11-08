@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -73,6 +74,35 @@ fun Modifier.tvFocus(
 }
 
 /**
+ * O foco de um cartão com o nome embaixo: o cartão inteiro recebe o foco (o
+ * OK vale nele todo), mas o realce vai só na imagem. Com a borda em volta do
+ * cartão inteiro ela passava por cima das primeiras letras do nome — "Dois
+ * Homens" virava "ois Homens". Como nas telas de TV: a imagem cresce e ganha
+ * a borda; o texto fica livre embaixo.
+ */
+class FocoDoCartao {
+    var focado by mutableStateOf(false)
+}
+
+@Composable
+fun rememberFocoDoCartao(): FocoDoCartao = remember { FocoDoCartao() }
+
+/** No cartão: quem recebe o foco. Vem antes do clique, para enxergar o foco dele. */
+fun Modifier.recebeFoco(foco: FocoDoCartao): Modifier = onFocusChanged { foco.focado = it.isFocused }
+
+/** Na imagem do cartão: o realce, desenhado maior sem mexer no lugar dela. */
+fun Modifier.realceDoFoco(foco: FocoDoCartao, radius: Dp, scale: Float = 1.06f): Modifier = composed {
+    val escala by animateFloatAsState(targetValue = if (foco.focado) scale else 1f, label = "escala do foco")
+    val cor by animateColorAsState(
+        targetValue = if (foco.focado) LabTheme.accent else Color.Transparent,
+        label = "borda do foco",
+    )
+    this
+        .drawWithContent { scale(escala) { this@drawWithContent.drawContent() } }
+        .border(if (foco.focado) 3.dp else 0.dp, cor, RoundedCornerShape(radius))
+}
+
+/**
  * Deixa as setas andarem por um formulário inteiro.
  *
  * O Compose entrega as setas ao cursor do campo — comportamento certo num
@@ -120,12 +150,36 @@ fun rememberTvInteraction(): MutableInteractionSource =
  * coisa que todo mundo adivinha.
  */
 @OptIn(ExperimentalFoundationApi::class)
-fun Modifier.cliqueComOpcoes(onClick: () -> Unit, onOpcoes: () -> Unit): Modifier =
+fun Modifier.cliqueComOpcoes(onClick: () -> Unit, onOpcoes: () -> Unit): Modifier = composed {
     onPreviewKeyEvent { evento ->
         if (evento.key != Key.Menu) return@onPreviewKeyEvent false
         if (evento.type == KeyEventType.KeyUp) onOpcoes()
         true
-    }.combinedClickable(onClick = onClick, onLongClick = onOpcoes)
+    }.combinedClickable(
+        interactionSource = remember { MutableInteractionSource() },
+        indication = indicacaoDoCartao(),
+        onClick = onClick, onLongClick = onOpcoes,
+    )
+}
+
+/**
+ * O clique de um cartão. Na TV, sem o realce padrão do Android: ele pintava
+ * um retângulo cinza sobre o cartão inteiro, nome incluído, por baixo do
+ * realce dourado da imagem (ver [realceDoFoco]). No celular, a ondulação do
+ * toque continua.
+ */
+fun Modifier.cliqueDoCartao(onClick: () -> Unit): Modifier = composed {
+    clickable(
+        interactionSource = remember { MutableInteractionSource() },
+        indication = indicacaoDoCartao(),
+        onClick = onClick,
+    )
+}
+
+@Composable
+private fun indicacaoDoCartao(): androidx.compose.foundation.Indication? =
+    if (com.mauricio.libertyx.core.Device.isTv(androidx.compose.ui.platform.LocalContext.current)) null
+    else androidx.compose.foundation.LocalIndication.current
 
 /**
  * A rolagem das faixas na TV: o foco fica num lugar fixo e a faixa desliza

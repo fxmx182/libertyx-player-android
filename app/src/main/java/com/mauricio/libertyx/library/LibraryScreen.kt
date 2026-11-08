@@ -124,6 +124,10 @@ import com.mauricio.libertyx.core.resumeKey
 import com.mauricio.libertyx.player.Playback
 import com.mauricio.libertyx.core.Demonstracao
 import com.mauricio.libertyx.tv.tvFocus
+import com.mauricio.libertyx.tv.rememberFocoDoCartao
+import com.mauricio.libertyx.tv.recebeFoco
+import com.mauricio.libertyx.tv.cliqueDoCartao
+import com.mauricio.libertyx.tv.realceDoFoco
 import com.mauricio.libertyx.tv.cliqueComOpcoes
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.rememberScrollState
@@ -616,9 +620,10 @@ internal fun CartaoDeVideo(item: MediaItem, volta: Int = 0, onOpcoes: (() -> Uni
     val progresso = remember(item.id, volta) {
         ResumeStore.get(contexto).progress(item.origin.resumeKey)
     }
-    Column(Modifier.tvFocus(14.dp).cliqueOuOpcoes(onClick, onOpcoes)) {
+    val foco = rememberFocoDoCartao()
+    Column(Modifier.recebeFoco(foco).cliqueOuOpcoes(onClick, onOpcoes)) {
         Box(
-            Modifier.fillMaxWidth().aspectRatio(16f / 10f).clip(RoundedCornerShape(14.dp))
+            Modifier.fillMaxWidth().aspectRatio(16f / 10f).realceDoFoco(foco, 14.dp).clip(RoundedCornerShape(14.dp))
                 .border(0.5.dp, LabTheme.glassBorder, RoundedCornerShape(14.dp)),
         ) {
             ImagemDe(item, Modifier.fillMaxSize())
@@ -637,7 +642,7 @@ internal fun CartaoDeVideo(item: MediaItem, volta: Int = 0, onOpcoes: (() -> Uni
 
 /** O menu só nos cartões que têm o que oferecer; nos outros, segurar não faz nada. */
 private fun Modifier.cliqueOuOpcoes(onClick: () -> Unit, onOpcoes: (() -> Unit)?): Modifier =
-    if (onOpcoes == null) clickable(onClick = onClick) else cliqueComOpcoes(onClick, onOpcoes)
+    if (onOpcoes == null) cliqueDoCartao(onClick) else cliqueComOpcoes(onClick, onOpcoes)
 
 /** Lista: mais itens por tela, bom para pastas com muitos vídeos. */
 @Composable

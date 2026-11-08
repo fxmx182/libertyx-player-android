@@ -67,6 +67,10 @@ import com.mauricio.libertyx.library.Secao
 import com.mauricio.libertyx.rede.ServidorDeMidia.Item
 import com.mauricio.libertyx.tv.RolagemDeTvNasBordas
 import com.mauricio.libertyx.tv.tvFocus
+import com.mauricio.libertyx.tv.rememberFocoDoCartao
+import com.mauricio.libertyx.tv.recebeFoco
+import com.mauricio.libertyx.tv.cliqueDoCartao
+import com.mauricio.libertyx.tv.realceDoFoco
 import kotlinx.coroutines.delay
 
 /**
@@ -243,10 +247,11 @@ internal fun PaginaDoVideoNaTv(
                 if (elenco.isNotEmpty()) item(key = "elenco") {
                     Faixa(stringResource(R.string.pg_elenco)) {
                         items(elenco, key = { it.id + it.tipo + (it.papel ?: "") }) { pessoa ->
+                            val foco = rememberFocoDoCartao()
                             Column(
-                                Modifier.width(110.dp).tvFocus(10.dp).clip(RoundedCornerShape(10.dp)).clickable { onPessoa(pessoa) },
+                                Modifier.width(110.dp).recebeFoco(foco).cliqueDoCartao { onPessoa(pessoa) },
                             ) {
-                                Box(Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(10.dp))) {
+                                Box(Modifier.fillMaxWidth().height(160.dp).realceDoFoco(foco, 10.dp).clip(RoundedCornerShape(10.dp))) {
                                     ImagemDoServidor(servidor, pessoa.id, listOf("Primary"), 240, Modifier.fillMaxSize(), androidx.compose.material.icons.Icons.Filled.Star)
                                 }
                                 Text(pessoa.nome, color = LabTheme.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, modifier = Modifier.padding(top = 6.dp))

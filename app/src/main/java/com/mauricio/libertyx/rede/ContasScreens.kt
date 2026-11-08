@@ -586,8 +586,9 @@ fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit, abrir: ServidorDeMidia.I
             containerColor = Color.Transparent,
             contentWindowInsets = margensSobADock(),
             topBar = {
-                // Na TV a página do vídeo é a tela inteira, como no app de TV do Jellyfin.
-                if (!(naTv && atual is Nivel.Video)) {
+                // Na TV a página do vídeo é a tela inteira, e na raiz o nome do
+                // servidor já está na barra de cima: o título só repetiria.
+                if (!(naTv && (atual is Nivel.Video || pilha.size == 1))) {
                     TopAppBar(
                         title = {
                             Column {

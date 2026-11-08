@@ -1967,6 +1967,13 @@ class PlayerActivity : Activity() {
                     ui.root.post { showSubtitleDelay() }
                 }
             )
+            val tamanho = TamanhoDaLegenda.atual(this@PlayerActivity)
+            add(
+                Ferramenta(
+                    getString(R.string.t_tamanho_legenda), R.drawable.ic_subtitle,
+                    valor = if (tamanho != 100) "$tamanho%" else null, aceso = tamanho != 100,
+                ) { ui.root.post { mostrarTamanhoDaLegenda() } }
+            )
             add(Ferramenta(getString(R.string.t_proporcao), R.drawable.ic_aspect) { cycleAspect() })
             add(
                 Ferramenta(
@@ -2226,6 +2233,96 @@ class PlayerActivity : Activity() {
             barra.isFocusableInTouchMode = true
             barra.postDelayed({ barra.requestFocus() }, 150)
         }
+    }
+
+    /**
+     * O tamanho da legenda: a mesma barra do atraso, no alto, com − e +, e a
+     * legenda à vista embaixo para ver se ficou confortável.
+     *
+     * O VLC 3 só lê o tamanho quando o motor nasce, então cada mudança refaz
+     * o motor no mesmo ponto, com o mesmo áudio e a mesma legenda — o filme
+     * pisca e volta. Os toques seguidos esperam meio segundo e viram um só.
+     */
+    private fun mostrarTamanhoDaLegenda() {
+        cancelControlsHide()
+        setControlsVisible(false)
+
+        val opcoes = TamanhoDaLegenda.opcoes
+        val vista = layoutInflater.inflate(R.layout.dialog_atraso_legenda, null)
+        val valor = vista.findViewById<TextView>(R.id.atraso_valor)
+        val barra = vista.findViewById<SeekBar>(R.id.atraso_barra)
+        vista.findViewById<TextView>(R.id.atraso_dica).setText(R.string.tamanho_legenda_dica)
+        barra.max = opcoes.lastIndex
+        barra.keyProgressIncrement = 1
+        val inicial = TamanhoDaLegenda.atual(this)
+        barra.progress = opcoes.indexOf(inicial).takeIf { it >= 0 } ?: opcoes.indexOf(100)
+        valor.text = getString(R.string.tamanho_legenda_valor, inicial)
+        val refazer = Runnable { refazerMotorComTamanhoDaLegenda() }
+        barra.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                val escala = opcoes[progress]
+                valor.text = getString(R.string.tamanho_legenda_valor, escala)
+                TamanhoDaLegenda.definir(this@PlayerActivity, escala)
+                barra.removeCallbacks(refazer)
+                barra.postDelayed(refazer, 500)
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar) = Unit
+            override fun onStopTrackingTouch(seekBar: SeekBar) = Unit
+        })
+        vista.findViewById<View>(R.id.atraso_menos).setOnClickListener { barra.progress -= 1 }
+        vista.findViewById<View>(R.id.atraso_mais).setOnClickListener { barra.progress += 1 }
+
+        val janela = Dialog(this, android.R.style.Theme_Translucent_NoTitleBar)
+        vista.findViewById<View>(R.id.atraso_fechar).setOnClickListener { janela.dismiss() }
+        janela.setContentView(vista)
+        janela.window?.apply {
+            val teto = (560 * resources.displayMetrics.density).toInt()
+            val margem = (16 * resources.displayMetrics.density).toInt()
+            setLayout(
+                minOf(teto, resources.displayMetrics.widthPixels - 2 * margem),
+                WindowManager.LayoutParams.WRAP_CONTENT,
+            )
+            setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL)
+            attributes = attributes.apply { y = margem * 2 }
+            clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            setBackgroundDrawableResource(android.R.color.transparent)
+            addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+            decorView.systemUiVisibility = window.decorView.systemUiVisibility
+        }
+        janela.setCanceledOnTouchOutside(true)
+        janela.setOnDismissListener { scheduleControlsHide() }
+        janela.show()
+        janela.window?.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+        if (isTv) {
+            barra.isFocusableInTouchMode = true
+            barra.postDelayed({ barra.requestFocus() }, 150)
+        }
+    }
+
+    /** Refaz o motor com o tamanho de legenda novo, no mesmo ponto e com as mesmas faixas. */
+    private fun refazerMotorComTamanhoDaLegenda() {
+        val alvo = item ?: return
+        if (!::engine.isInitialized || isFinishing) return
+        val instante = engine.currentTime
+        val audio = engine.currentAudioTrack
+        val legenda = engine.currentSubtitleTrack
+        val atraso = engine.subtitleDelay
+        val mudo = engine.isMuted
+        engine.teardown()
+        engine = VlcEngine(this)
+        engine.attach(ui.videoLayout)
+        bindEngine()
+        engine.load(alvo, instante).onFailure {
+            presentError(it.message ?: getString(R.string.erro_abrir_curto))
+            return
+        }
+        engine.restaurarFaixas(audio, legenda)
+        engine.subtitleDelay = atraso
+        engine.isMuted = mudo
+        applyGravity(anunciar = false)
+        buscarLegendasAoLado(alvo)
+        engine.play()
+        if (playbackSpeed != 1f) engine.rate = playbackSpeed
     }
 
     private fun showSpeedSheet() {

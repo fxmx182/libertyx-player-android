@@ -83,4 +83,7 @@
     <string name="tv_audio_x">Audio: %1$s</string>
     <string name="tv_legendas_x">Subtítulos: %1$s</string>
     <string name="tv_qualidade_x">Calidad: %1$s</string>
+    <string name="t_tamanho_legenda">Tamaño de subtítulos</string>
+    <string name="tamanho_legenda_valor">Subtítulos al %1$d%%</string>
+    <string name="tamanho_legenda_dica">Mira el subtítulo abajo. Con cada cambio el video vuelve al mismo punto.</string>
 </resources>

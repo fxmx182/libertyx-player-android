@@ -89,6 +89,10 @@ import com.mauricio.libertyx.player.Playback
 import com.mauricio.libertyx.rede.ServidorDeMidia.Item
 import com.mauricio.libertyx.tv.RolagemDeTvNasBordas
 import com.mauricio.libertyx.tv.tvFocus
+import com.mauricio.libertyx.tv.rememberFocoDoCartao
+import com.mauricio.libertyx.tv.recebeFoco
+import com.mauricio.libertyx.tv.cliqueDoCartao
+import com.mauricio.libertyx.tv.realceDoFoco
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -194,11 +198,11 @@ private fun FaixaDoElenco(servidor: ServidorDeMidia, elenco: List<ServidorDeMidi
         RolagemDeTvNasBordas(margem = 28.dp) {
             LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(elenco, key = { it.id + it.tipo + (it.papel ?: "") }) { pessoa ->
+                    val foco = rememberFocoDoCartao()
                     Column(
-                        Modifier.width(96.dp * Escala.fator()).tvFocus(10.dp).clip(RoundedCornerShape(10.dp))
-                            .clickable { onPessoa(pessoa) },
+                        Modifier.width(96.dp * Escala.fator()).recebeFoco(foco).cliqueDoCartao { onPessoa(pessoa) },
                     ) {
-                        Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(10.dp))) {
+                        Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).realceDoFoco(foco, 10.dp).clip(RoundedCornerShape(10.dp))) {
                             ImagemDoServidor(servidor, pessoa.id, listOf("Primary"), 240, Modifier.fillMaxSize(), Icons.Filled.Person)
                         }
                         Text(
@@ -573,11 +577,11 @@ fun PaginaDoVideo(
                 RolagemDeTvNasBordas(margem = 28.dp) {
                     LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         items(extras, key = { it.id }) { extra ->
+                            val foco = rememberFocoDoCartao()
                             Column(
-                                Modifier.width(220.dp * Escala.fator()).tvFocus(12.dp).clip(RoundedCornerShape(12.dp))
-                                    .clickable { tocarSozinho(extra) },
+                                Modifier.width(220.dp * Escala.fator()).recebeFoco(foco).cliqueDoCartao { tocarSozinho(extra) },
                             ) {
-                                Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(12.dp))) {
+                                Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).realceDoFoco(foco, 12.dp).clip(RoundedCornerShape(12.dp))) {
                                     ImagemDoServidor(servidor, extra.id, listOf("Primary", "Thumb"), 480, Modifier.fillMaxSize())
                                 }
                                 Text(extra.nome, color = LabTheme.text, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, modifier = Modifier.padding(top = 7.dp))
@@ -956,8 +960,9 @@ private fun SeloAoVivo(modifier: Modifier) {
 /** O cartão da faixa do início do servidor: o logotipo, o canal e o que está passando. */
 @Composable
 internal fun CartaoDeCanal(servidor: ServidorDeMidia, canal: ServidorDeMidia.Canal, onClick: () -> Unit) {
-    Column(Modifier.width(200.dp * Escala.fator()).tvFocus(12.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick)) {
-        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(12.dp)).border(0.5.dp, LabTheme.glassBorder, RoundedCornerShape(12.dp))) {
+    val foco = rememberFocoDoCartao()
+    Column(Modifier.width(200.dp * Escala.fator()).recebeFoco(foco).cliqueDoCartao(onClick)) {
+        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).realceDoFoco(foco, 12.dp).clip(RoundedCornerShape(12.dp)).border(0.5.dp, LabTheme.glassBorder, RoundedCornerShape(12.dp))) {
             LogoDoCanal(servidor, canal, Modifier.fillMaxSize())
             SeloAoVivo(Modifier.align(Alignment.TopStart).padding(6.dp))
             Progresso(canal.programa?.andamento())

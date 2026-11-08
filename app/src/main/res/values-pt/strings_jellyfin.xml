@@ -83,4 +83,7 @@
     <string name="tv_audio_x">Áudio: %1$s</string>
     <string name="tv_legendas_x">Legendas: %1$s</string>
     <string name="tv_qualidade_x">Qualidade: %1$s</string>
+    <string name="t_tamanho_legenda">Tamanho da legenda</string>
+    <string name="tamanho_legenda_valor">Legenda em %1$d%%</string>
+    <string name="tamanho_legenda_dica">Olhe a legenda embaixo. A cada mudança o vídeo recomeça do mesmo ponto.</string>
 </resources>

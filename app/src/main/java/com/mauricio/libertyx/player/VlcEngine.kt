@@ -526,6 +526,30 @@ class VlcEngine(private val context: Context) {
         return player.addSlave(IMedia.Slave.Type.Subtitle, uri, selecionar)
     }
 
+    /**
+     * As faixas de antes de o motor ser refeito (ver [TamanhoDaLegenda]):
+     * o mesmo áudio e a mesma legenda voltam assim que existirem de novo.
+     * A legenda de fora chega depois das outras; tenta-se a cada faixa nova.
+     */
+    private var faixasARestaurar: Pair<Int?, Int?>? = null
+
+    fun restaurarFaixas(audio: Int?, legenda: Int?) {
+        faixasARestaurar = audio to legenda
+        legendaDoUsuario = true
+    }
+
+    private fun aplicarRestauracao() {
+        val (audio, legenda) = faixasARestaurar ?: return
+        if (audio != null && player.audioTracks.orEmpty().any { it.id == audio } && player.audioTrack != audio) {
+            player.setAudioTrack(audio)
+        }
+        val alvo = legenda ?: -1
+        if (alvo == -1 || player.spuTracks.orEmpty().any { it.id == alvo }) {
+            if (player.spuTrack != alvo) player.setSpuTrack(alvo)
+            faixasARestaurar = null
+        }
+    }
+
     /** O áudio e a legenda escolhidos na página do servidor, à espera de as faixas aparecerem. */
     private var pedidoDeFaixas: EscolhaDeFaixas.Pedido? = null
     private var idsInternos: Set<Int>? = null
@@ -710,6 +734,7 @@ class VlcEngine(private val context: Context) {
             MediaPlayer.Event.Playing -> {
                 buffering = false
                 state = PlaybackState.Playing
+                aplicarRestauracao()
                 aplicarPedidoDeFaixas()
                 aplicarRegraDaLegenda()
             }
@@ -755,6 +780,7 @@ class VlcEngine(private val context: Context) {
                 onTimeUpdate?.invoke(doVlc)
             }
             MediaPlayer.Event.ESAdded, MediaPlayer.Event.ESDeleted -> {
+                aplicarRestauracao()
                 aplicarPedidoDeFaixas()
                 aplicarRegraDaLegenda()
                 onTracksChange?.invoke()
