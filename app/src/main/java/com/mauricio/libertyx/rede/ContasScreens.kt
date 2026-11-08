@@ -647,6 +647,8 @@ fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit, abrir: ServidorDeMidia.I
                         onPessoa = { pilha = pilha + Nivel.Pessoa(it.nome, it) },
                         // Outro episódio da temporada troca de página, sem empilhar.
                         onVideo = { pilha = pilha.dropLast(1) + Nivel.Video(it.titulo, it) },
+                        // A casinha da TV: o início do servidor, e não o do app.
+                        onInicio = { pilha = listOf(Nivel.Bibliotecas(conta.nome)) },
                     )
                     atual is Nivel.Serie && servidorDaConta != null -> PaginaDaSerie(
                         conta, servidorDaConta, atual.id, atual.nome,

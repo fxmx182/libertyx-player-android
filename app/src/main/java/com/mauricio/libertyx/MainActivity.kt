@@ -50,7 +50,6 @@ import com.mauricio.libertyx.library.AjustesScreen
 import com.mauricio.libertyx.library.ArquivosScreen
 import com.mauricio.libertyx.library.Dock
 import com.mauricio.libertyx.library.itensDaDock
-import com.mauricio.libertyx.library.LocalIrAoInicio
 import com.mauricio.libertyx.library.TelaCheiaNaTv
 import com.mauricio.libertyx.rede.ContasDeRede
 import com.mauricio.libertyx.smb.SmbServerStore
@@ -156,10 +155,7 @@ private fun App() {
     // servidor ou de uma pasta da rede, as quatro abas seguem a um toque.
     // Tocar numa aba fecha a tela da rede e leva à raiz dela.
     Box(Modifier.fillMaxSize()) {
-        CompositionLocalProvider(
-            LocalDock provides !naTv,
-            LocalIrAoInicio provides { mudarAba(Aba.Inicio); tela = Screen.Library },
-        ) {
+        CompositionLocalProvider(LocalDock provides !naTv) {
             when (val atual = tela) {
                 // As mesmas quatro abas nos dois: na dock, para o dedo, e numa
                 // fileira no alto da TV, para o controle remoto.

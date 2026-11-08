@@ -99,6 +99,8 @@ internal fun PaginaDoVideoNaTv(
     onVideo: (Item) -> Unit,
     onPessoa: (ServidorDeMidia.Pessoa) -> Unit,
     onExtra: (Item) -> Unit,
+    /** A casinha: volta ao início deste servidor (Continuar, A seguir, bibliotecas). */
+    onInicio: () -> Unit,
 ) {
     val contexto = LocalContext.current
     val tela = LocalConfiguration.current
@@ -114,7 +116,6 @@ internal fun PaginaDoVideoNaTv(
         com.mauricio.libertyx.library.TelaCheiaNaTv.ativa.value = true
         onDispose { com.mauricio.libertyx.library.TelaCheiaNaTv.ativa.value = false }
     }
-    val irAoInicio = com.mauricio.libertyx.library.LocalIrAoInicio.current
     val posicaoNaTemporada = temporada.indexOfFirst { it.id == item.id }
     val anterior = temporada.getOrNull(posicaoNaTemporada - 1)?.takeIf { posicaoNaTemporada > 0 }
     val seguintes = if (posicaoNaTemporada >= 0) temporada.drop(posicaoNaTemporada + 1) else emptyList()
@@ -140,7 +141,7 @@ internal fun PaginaDoVideoNaTv(
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
                 item(key = "topo") {
                     Box(Modifier.fillMaxWidth().heightIn(min = (tela.screenHeightDp * 0.74f).dp)) {
-                        // No canto, só a casinha (volta ao Início) e a hora —
+                        // No canto, só a casinha (volta ao início do servidor) e a hora —
                         // a barra de abas fica escondida nesta página.
                         Row(
                             Modifier.align(Alignment.TopEnd).padding(top = 24.dp, end = 48.dp),
@@ -148,7 +149,7 @@ internal fun PaginaDoVideoNaTv(
                         ) {
                             Box(
                                 Modifier.size(44.dp).tvFocus(22.dp).clip(androidx.compose.foundation.shape.CircleShape)
-                                    .clickable(onClick = irAoInicio),
+                                    .clickable(onClick = onInicio),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(Icons.Filled.Home, null, tint = LabTheme.text, modifier = Modifier.size(28.dp))

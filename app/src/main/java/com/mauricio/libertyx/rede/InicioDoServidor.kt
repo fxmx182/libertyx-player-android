@@ -182,7 +182,7 @@ fun InicioDoServidor(conta: ContaDeRede, onAbrir: (Item) -> Unit, onCanais: () -
                     Faixa(stringResource(R.string.a_seguir)) {
                         items(pronto.aSeguir, key = { it.id }) {
                             val primeiro = pronto.continuar.isEmpty() && it === pronto.aSeguir.first()
-                            CartaoDeitado(servidor, it, abrir, noTopo(primeiro, topo)) { menuDe = it }
+                            CartaoDeitado(servidor, it, abrir, noTopo(primeiro, topo), capaDaSerie = true) { menuDe = it }
                         }
                     }
                 }
@@ -351,6 +351,8 @@ internal fun CartaoDeitado(
     item: Item,
     onClick: (Item) -> Unit,
     modifier: Modifier = Modifier,
+    /** "A seguir": a capa deitada da série (ou do filme), e não a cena do episódio — como no app do Jellyfin. */
+    capaDaSerie: Boolean = false,
     onOpcoes: (Item) -> Unit,
 ) {
     val forma = RoundedCornerShape(12.dp)
@@ -361,8 +363,12 @@ internal fun CartaoDeitado(
     ) {
         Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).realceDoFoco(foco, 12.dp).clip(forma).border(0.5.dp, LabTheme.glassBorder, forma)) {
             // O "Primary" do episódio já é uma cena; o do filme é o cartaz em pé.
-            val tipos = if (item.tipo == "Episode") listOf("Primary", "Thumb") else listOf("Thumb", "Backdrop", "Primary")
-            ImagemDoServidor(servidor, item.id, tipos, 480, Modifier.fillMaxSize())
+            val (id, tipos) = when {
+                capaDaSerie -> (item.serieId ?: item.id) to listOf("Thumb", "Backdrop", "Primary")
+                item.tipo == "Episode" -> item.id to listOf("Primary", "Thumb")
+                else -> item.id to listOf("Thumb", "Backdrop", "Primary")
+            }
+            ImagemDoServidor(servidor, id, tipos, 480, Modifier.fillMaxSize())
             if (item.visto) {
                 Icon(
                     Icons.Filled.Check, null, tint = Color.Black,

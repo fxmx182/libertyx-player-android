@@ -271,6 +271,8 @@ fun PaginaDoVideo(
     onSerie: (serieId: String, nome: String) -> Unit,
     onPessoa: (ServidorDeMidia.Pessoa) -> Unit,
     onVideo: (Item) -> Unit,
+    /** Na TV, a casinha: o início deste servidor. */
+    onInicio: () -> Unit = {},
 ) {
     val contexto = LocalContext.current
     val naTv = remember { Device.isTv(contexto) }
@@ -411,6 +413,7 @@ fun PaginaDoVideo(
         onVideo = onVideo,
         onPessoa = onPessoa,
         onExtra = { tocarSozinho(it) },
+        onInicio = onInicio,
     ) else LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 110.dp)) {
         item(key = "cabeca") { Cabeca(servidor, d.fundoDe ?: item.serieId ?: item.id, d.logoDe) }
         item(key = "titulos") {

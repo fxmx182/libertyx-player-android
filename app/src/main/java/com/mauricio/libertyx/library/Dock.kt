@@ -176,9 +176,6 @@ object TelaCheiaNaTv {
     val ativa = androidx.compose.runtime.mutableStateOf(false)
 }
 
-/** Volta ao Início de qualquer lugar — a casinha da página do vídeo na TV. */
-val LocalIrAoInicio = staticCompositionLocalOf<() -> Unit> { {} }
-
 /** Se a dock está por cima desta tela: no celular, sim; na TV não há dock. */
 val LocalDock = staticCompositionLocalOf { false }
 
