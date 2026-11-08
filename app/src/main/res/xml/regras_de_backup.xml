@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Backup do Android até o 11. O cofre das senhas fica de fora: a chave que o
+  abre mora no Keystore e não vai junto, então ele voltaria ilegível e as
+  senhas sumiriam. A lista de servidores continua no backup.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="libertyx.secrets.xml" />
+    <exclude domain="sharedpref" path="libertyx.secrets.plain.xml" />
+    <exclude domain="sharedpref" path="libertyx.secrets.contas.xml" />
+    <exclude domain="sharedpref" path="libertyx.secrets.contas.plain.xml" />
+</full-backup-content>

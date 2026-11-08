@@ -66,6 +66,8 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -443,6 +445,8 @@ private fun EditorDeServidor(
     senhaAtual: String?,
     onCancel: () -> Unit,
     onSave: (SmbServer, String?) -> Unit,
+    /** Uma linha acima dos campos: por que o editor abriu sozinho. */
+    aviso: String? = null,
 ) {
     var nome by remember { mutableStateOf(servidor.name) }
     var host by remember { mutableStateOf(servidor.host) }
@@ -469,6 +473,9 @@ private fun EditorDeServidor(
             // borda, e o que não dá para focar não dá para digitar: a senha
             // simplesmente não aceitava texto porque nunca recebia o foco.
             Column(Modifier.verticalScroll(rolagem).setasTrocamDeCampo()) {
+                if (aviso != null) {
+                    Text(aviso, color = LabTheme.accent, fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp))
+                }
                 OutlinedTextField(
                     value = nome, onValueChange = { nome = it },
                     label = { Text(stringResource(R.string.nome)) }, singleLine = true,
@@ -554,9 +561,32 @@ private fun EditorDeServidor(
  * precisa desfazer um nível de cada vez, e cortar texto por barra erraria em
  * pasta cujo nome tem barra codificada.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SmbBrowserScreen(server: SmbServer, onBack: () -> Unit) {
+    val contexto = LocalContext.current
+    val store = remember { SmbServerStore.get(contexto) }
+    // Servidor com usuário e sem senha guardada: o cofre não sobreviveu a uma
+    // reinstalação (ver `core.Cofre`). Em vez do erro de acesso, pede a senha.
+    var versao by remember(server.id) { mutableIntStateOf(0) }
+    val atual = remember(server.id, versao) { store.byId(server.id) ?: server }
+    val semSenha = remember(server.id, versao) {
+        !atual.isGuest && atual.username.isNotBlank() && store.password(atual) == null
+    }
+    if (semSenha) {
+        EditorDeServidor(
+            servidor = atual, editando = true, senhaAtual = null,
+            onCancel = onBack,
+            onSave = { servidor, senha -> store.save(servidor, senha); versao++ },
+            aviso = stringResource(R.string.senha_perdida),
+        )
+        return
+    }
+    key(versao) { PastasDoServidorSmb(atual, onBack) }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PastasDoServidorSmb(server: SmbServer, onBack: () -> Unit) {
     val contexto = LocalContext.current
     val store = remember { SmbServerStore.get(contexto) }
     val senha = remember(server.id) { store.password(server) }

@@ -86,4 +86,5 @@
     <string name="t_tamanho_legenda">Tamaño de subtítulos</string>
     <string name="tamanho_legenda_valor">Subtítulos al %1$d%%</string>
     <string name="tamanho_legenda_dica">Mira el subtítulo abajo. Con cada cambio el video vuelve al mismo punto.</string>
+    <string name="senha_perdida">La contraseña de este servidor ya no está guardada en este dispositivo. Escríbela de nuevo para entrar.</string>
 </resources>

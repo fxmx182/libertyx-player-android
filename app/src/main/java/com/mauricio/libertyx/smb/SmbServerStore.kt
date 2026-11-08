@@ -2,8 +2,6 @@ package com.mauricio.libertyx.smb
 
 import android.content.Context
 import android.content.SharedPreferences
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 import com.mauricio.libertyx.core.Prefs
 import org.json.JSONArray
 import org.json.JSONObject
@@ -81,28 +79,9 @@ class SmbServerStore private constructor(context: Context) {
         prefs.edit().putString(KEY, raiz.toString()).apply()
     }
 
-    /**
-     * O cofre de senhas, com queda para as preferências comuns.
-     *
-     * A cifra depende do chaveiro do sistema, e há aparelho — ROM alternativa,
-     * emulador, usuário secundário — em que ele simplesmente falha ao abrir.
-     * Recusar-se a funcionar ali deixaria o app inútil por causa do modo de
-     * guardar a senha; a queda é anunciada no README e não silenciosa.
-     */
-    private fun abrirCofre(context: Context): SharedPreferences = runCatching {
-        val chave = MasterKey.Builder(context.applicationContext)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-        EncryptedSharedPreferences.create(
-            context.applicationContext,
-            "libertyx.secrets",
-            chave,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-        )
-    }.getOrElse {
-        context.applicationContext.getSharedPreferences("libertyx.secrets.plain", Context.MODE_PRIVATE)
-    }
+    /** O cofre de senhas (ver [com.mauricio.libertyx.core.Cofre]). */
+    private fun abrirCofre(context: Context): SharedPreferences =
+        com.mauricio.libertyx.core.Cofre.abrir(context, "libertyx.secrets")
 
     companion object {
         private const val KEY = "libertyx.smbServers"

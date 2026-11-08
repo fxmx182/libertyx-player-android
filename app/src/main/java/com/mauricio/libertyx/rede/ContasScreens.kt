@@ -56,6 +56,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -223,6 +224,8 @@ fun EditorDeConta(
     conta: ContaDeRede?,
     onCancel: () -> Unit,
     onSalvo: () -> Unit,
+    /** Uma linha acima dos campos: por que o editor abriu sozinho. */
+    aviso: String? = null,
 ) {
     val contexto = LocalContext.current
     val loja = remember { ContasDeRede.get(contexto) }
@@ -308,8 +311,10 @@ fun EditorDeConta(
             return
         }
         // Editar só o apelido não pede a senha de novo; trocar o servidor ou o
-        // usuário pede, porque o token antigo não vale lá.
-        val mesmoAcesso = conta != null && conta.endereco == nova.endereco && conta.usuario == nova.usuario
+        // usuário pede, porque o token antigo não vale lá. Sem token guardado
+        // (o cofre se perdeu) entra de novo, mesmo com a senha vazia.
+        val mesmoAcesso = conta != null && conta.endereco == nova.endereco && conta.usuario == nova.usuario &&
+            !loja.segredo(conta).isNullOrEmpty()
         if (mesmoAcesso && senha.isEmpty()) {
             loja.salvar(nova, null)
         } else {
@@ -362,6 +367,9 @@ fun EditorDeConta(
             // O conteúdo rola: numa tela deitada os últimos campos ficariam
             // abaixo da borda, e o que não dá para focar não dá para digitar.
             Column(Modifier.verticalScroll(rememberScrollState()).setasTrocamDeCampo()) {
+                if (aviso != null) {
+                    Text(aviso, color = LabTheme.accent, fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp))
+                }
                 OutlinedTextField(
                     value = nome, onValueChange = { nome = it },
                     label = { Text(stringResource(R.string.nome)) }, singleLine = true,
@@ -521,9 +529,31 @@ private data class Conteudo(
  * Dentro de uma conta WebDAV, Jellyfin ou Emby — o mesmo desenho das pastas
  * SMB: grade ou lista, as mesmas opções, a mesma miniatura.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContaScreen(conta: ContaDeRede, onBack: () -> Unit, abrir: ServidorDeMidia.Item? = null) {
+    val contexto = LocalContext.current
+    val loja = remember { ContasDeRede.get(contexto) }
+    // Sem o token (ou a senha, no WebDAV com usuário) a conta não abre: em
+    // vez do erro do servidor, o editor pede a senha de novo. Acontece quando
+    // o cofre não sobrevive a uma reinstalação (ver `core.Cofre`).
+    var versao by remember(conta.id) { mutableIntStateOf(0) }
+    val atual = remember(conta.id, versao) { loja.byId(conta.id) ?: conta }
+    val semSenha = remember(conta.id, versao) {
+        (atual.tipo.ehServidorDeMidia || atual.usuario.isNotBlank()) && loja.segredo(atual).isNullOrEmpty()
+    }
+    if (semSenha) {
+        EditorDeConta(
+            atual.tipo, atual, onCancel = onBack, onSalvo = { versao++ },
+            aviso = stringResource(R.string.senha_perdida),
+        )
+        return
+    }
+    key(versao) { ConteudoDaConta(atual, onBack, abrir) }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ConteudoDaConta(conta: ContaDeRede, onBack: () -> Unit, abrir: ServidorDeMidia.Item?) {
     val contexto = LocalContext.current
     val loja = remember { ContasDeRede.get(contexto) }
     val naTv = remember { Device.isTv(contexto) }

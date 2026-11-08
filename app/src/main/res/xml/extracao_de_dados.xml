@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12 em diante: o mesmo que regras_de_backup.xml. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="libertyx.secrets.xml" />
+        <exclude domain="sharedpref" path="libertyx.secrets.plain.xml" />
+        <exclude domain="sharedpref" path="libertyx.secrets.contas.xml" />
+        <exclude domain="sharedpref" path="libertyx.secrets.contas.plain.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="libertyx.secrets.xml" />
+        <exclude domain="sharedpref" path="libertyx.secrets.plain.xml" />
+        <exclude domain="sharedpref" path="libertyx.secrets.contas.xml" />
+        <exclude domain="sharedpref" path="libertyx.secrets.contas.plain.xml" />
+    </device-transfer>
+</data-extraction-rules>

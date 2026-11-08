@@ -3,8 +3,6 @@ package com.mauricio.libertyx.rede
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 import com.mauricio.libertyx.R
 import com.mauricio.libertyx.core.MediaOrigin
 import com.mauricio.libertyx.core.Prefs
@@ -107,20 +105,8 @@ class ContasDeRede private constructor(context: Context) {
     }
 
     /** O mesmo cofre cifrado das senhas de SMB, num arquivo à parte. */
-    private fun abrirCofre(context: Context): SharedPreferences = runCatching {
-        val chave = MasterKey.Builder(context.applicationContext)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-        EncryptedSharedPreferences.create(
-            context.applicationContext,
-            "libertyx.secrets.contas",
-            chave,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-        )
-    }.getOrElse {
-        context.applicationContext.getSharedPreferences("libertyx.secrets.contas.plain", Context.MODE_PRIVATE)
-    }
+    private fun abrirCofre(context: Context): SharedPreferences =
+        com.mauricio.libertyx.core.Cofre.abrir(context, "libertyx.secrets.contas")
 
     companion object {
         private const val KEY = "libertyx.contasDeRede"

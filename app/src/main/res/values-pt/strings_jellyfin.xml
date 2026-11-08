@@ -86,4 +86,5 @@
     <string name="t_tamanho_legenda">Tamanho da legenda</string>
     <string name="tamanho_legenda_valor">Legenda em %1$d%%</string>
     <string name="tamanho_legenda_dica">Olhe a legenda embaixo. A cada mudança o vídeo recomeça do mesmo ponto.</string>
+    <string name="senha_perdida">A senha deste servidor não está mais guardada neste aparelho. Digite de novo para entrar.</string>
 </resources>

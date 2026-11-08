@@ -47,6 +47,8 @@
     <application
         android:name=".LibertyXApp"
         android:allowBackup="true"
+        android:fullBackupContent="@xml/regras_de_backup"
+        android:dataExtractionRules="@xml/extracao_de_dados"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"

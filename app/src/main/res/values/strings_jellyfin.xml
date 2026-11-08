@@ -86,4 +86,5 @@
     <string name="t_tamanho_legenda">Subtitle size</string>
     <string name="tamanho_legenda_valor">Subtitles at %1$d%%</string>
     <string name="tamanho_legenda_dica">Look at the subtitle below. Each change restarts the video at the same point.</string>
+    <string name="senha_perdida">The password for this server is no longer saved on this device. Type it again to sign in.</string>
 </resources>
