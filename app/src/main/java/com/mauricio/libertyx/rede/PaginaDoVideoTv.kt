@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay
@@ -104,6 +105,12 @@ internal fun PaginaDoVideoNaTv(
             agora = System.currentTimeMillis()
         }
     }
+    // A barra de abas do alto some enquanto esta página está aberta.
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        com.mauricio.libertyx.library.TelaCheiaNaTv.ativa.value = true
+        onDispose { com.mauricio.libertyx.library.TelaCheiaNaTv.ativa.value = false }
+    }
+    val irAoInicio = com.mauricio.libertyx.library.LocalIrAoInicio.current
     val posicaoNaTemporada = temporada.indexOfFirst { it.id == item.id }
     val anterior = temporada.getOrNull(posicaoNaTemporada - 1)?.takeIf { posicaoNaTemporada > 0 }
     val seguintes = if (posicaoNaTemporada >= 0) temporada.drop(posicaoNaTemporada + 1) else emptyList()
@@ -124,21 +131,34 @@ internal fun PaginaDoVideoNaTv(
         )
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.55f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.7f))))
 
-        // O relógio no canto, como nas telas de TV: "termina às" pede a hora de agora.
-        Text(
-            DateFormat.getTimeFormat(contexto).format(java.util.Date(agora)),
-            color = LabTheme.text, fontSize = 22.sp, fontWeight = FontWeight.Light,
-            modifier = Modifier.align(Alignment.TopEnd).padding(top = 28.dp, end = 48.dp),
-        )
 
         RolagemDeTvNasBordas(margem = 40.dp) {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
                 item(key = "topo") {
-                    Box(Modifier.fillMaxWidth().heightIn(min = (tela.screenHeightDp * 0.78f).dp)) {
+                    Box(Modifier.fillMaxWidth().heightIn(min = (tela.screenHeightDp * 0.74f).dp)) {
+                        // No canto, só a casinha (volta ao Início) e a hora —
+                        // a barra de abas fica escondida nesta página.
+                        Row(
+                            Modifier.align(Alignment.TopEnd).padding(top = 24.dp, end = 48.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(
+                                Modifier.size(44.dp).tvFocus(22.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                                    .clickable(onClick = irAoInicio),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(Icons.Filled.Home, null, tint = LabTheme.text, modifier = Modifier.size(28.dp))
+                            }
+                            Spacer(Modifier.width(20.dp))
+                            Text(
+                                DateFormat.getTimeFormat(contexto).format(java.util.Date(agora)),
+                                color = LabTheme.text, fontSize = 22.sp, fontWeight = FontWeight.Light,
+                            )
+                        }
                         d.logoDe?.let {
                             LogoDoServidor(
                                 servidor, it,
-                                Modifier.align(Alignment.TopEnd).padding(top = 150.dp, end = 48.dp).widthIn(max = 260.dp).heightIn(max = 70.dp),
+                                Modifier.align(Alignment.TopEnd).padding(top = 170.dp, end = 48.dp).widthIn(max = 260.dp).heightIn(max = 70.dp),
                             )
                         }
                         // A margem da direita deixa lugar ao logotipo; os botões passam por baixo dele.
@@ -148,7 +168,13 @@ internal fun PaginaDoVideoNaTv(
                                 color = LabTheme.text, fontSize = 34.sp, fontWeight = FontWeight.Light,
                                 maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 140.dp, end = 292.dp),
                             )
-                            Row(Modifier.padding(start = 140.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            // Até antes do logotipo: os selos não passam por baixo dele.
+                            @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+                            androidx.compose.foundation.layout.FlowRow(
+                                Modifier.padding(start = 140.dp, top = 6.dp, end = 292.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                                itemVerticalAlignment = Alignment.CenterVertically,
+                            ) {
                                 d.nota?.let {
                                     Icon(Icons.Filled.Star, null, tint = LabTheme.accent, modifier = Modifier.size(18.dp))
                                     Text(String.format(java.util.Locale.getDefault(), " %.1f", it), color = LabTheme.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)

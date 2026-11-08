@@ -167,6 +167,18 @@ fun IconeDaAba(item: ItemDaDock, ativa: Boolean, cor: Color, tamanho: androidx.c
     }
 }
 
+/**
+ * Na TV, a página do vídeo toma a tela inteira, como no app de TV do
+ * Jellyfin: enquanto ela está aberta, a barra de abas do alto some (e
+ * subir com o controle não cai mais nela). A página liga e desliga isto.
+ */
+object TelaCheiaNaTv {
+    val ativa = androidx.compose.runtime.mutableStateOf(false)
+}
+
+/** Volta ao Início de qualquer lugar — a casinha da página do vídeo na TV. */
+val LocalIrAoInicio = staticCompositionLocalOf<() -> Unit> { {} }
+
 /** Se a dock está por cima desta tela: no celular, sim; na TV não há dock. */
 val LocalDock = staticCompositionLocalOf { false }
 
