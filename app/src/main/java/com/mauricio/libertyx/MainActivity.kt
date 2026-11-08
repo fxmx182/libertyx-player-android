@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -118,7 +119,15 @@ private fun App() {
     val itens = itensDaDock()
     // A aba aberta saiu da dock (ou o servidor foi apagado): volta ao Início.
     val aba = Aba.de(chaveDaAba)?.takeIf { a -> itens.any { it.aba == a } } ?: Aba.Inicio
+    // Sobe a cada toque na aba que já está aberta: a tela dela nasce de novo,
+    // do começo — de dentro de uma pasta, de um servidor ou de uma página,
+    // tocar em Início leva sempre ao Início.
+    var geracaoDaAba by remember { mutableIntStateOf(0) }
     val mudarAba = { nova: Aba -> chaveDaAba = nova.chave }
+    val tocarNaAba = { nova: Aba ->
+        if (nova == aba) geracaoDaAba++
+        chaveDaAba = nova.chave
+    }
 
     // O botão "voltar" do Android tem que voltar dentro do app, e não sair
     // dele. Sem isto, sair da tela de servidores fecha o LibertyX — e como a
@@ -164,16 +173,18 @@ private fun App() {
                     // o app fecha — como em todo app de abas do Android.
                     BackHandler(enabled = aba != Aba.Inicio) { mudarAba(Aba.Inicio) }
                     val conteudo = @Composable {
-                        TelaDaAba(
-                            aba, naTv, onAba = mudarAba,
-                            abrirServidores = abrirServidores, abrirAtalho = abrirAtalho,
-                            // Na TV não há guia: o controle remoto já é o guia.
-                            onGuia = if (naTv) null else ({ mostrandoGuia = true }),
-                        )
+                        key(aba.chave, geracaoDaAba) {
+                            TelaDaAba(
+                                aba, naTv, onAba = mudarAba,
+                                abrirServidores = abrirServidores, abrirAtalho = abrirAtalho,
+                                // Na TV não há guia: o controle remoto já é o guia.
+                                onGuia = if (naTv) null else ({ mostrandoGuia = true }),
+                            )
+                        }
                     }
                     if (naTv) {
                         Column(Modifier.fillMaxSize().background(LabTheme.background)) {
-                            if (!TelaCheiaNaTv.ativa.value) AbasDaTv(itens, aba, onAba = mudarAba)
+                            if (!TelaCheiaNaTv.ativa.value) AbasDaTv(itens, aba, onAba = tocarNaAba)
                             Box(Modifier.weight(1f).fillMaxWidth()) { conteudo() }
                         }
                     } else {
@@ -201,7 +212,7 @@ private fun App() {
         if (!naTv) {
             Dock(
                 itens, aba,
-                onAba = { mudarAba(it); tela = Screen.Library },
+                onAba = { tocarNaAba(it); tela = Screen.Library },
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }

@@ -357,6 +357,10 @@ fun PaginaDoVideo(
         val lista = if (atual.tipo == "Episode" && temporada.any { it.id == atual.id }) temporada else listOf(atual)
         val alvo = paraTocar(conta, atual)
         pedirFaixas(alvo.origin.resumeKey)
+        // Vídeo HDR: numa tela HDR o player manda direto para a tela (ver Hdr).
+        detalhes?.faixas("Video")?.firstOrNull()?.faixaDinamica
+            ?.takeIf { it.isNotEmpty() && !it.equals("SDR", true) }
+            ?.let { com.mauricio.libertyx.player.Hdr.marcar(alvo.origin.resumeKey) }
         inicio?.let { EscolhaDeFaixas.pedirInicio(it, alvo.origin.resumeKey) }
         Playback.start(contexto, alvo, lista.map { paraTocar(conta, it) })
     }

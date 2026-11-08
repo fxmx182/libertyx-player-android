@@ -57,11 +57,15 @@ data class MediaTrack(val id: Int, val label: String)
  * existe pela mesma razão: os gestos são a cara do app e não podem ser
  * reescritos quando o motor mudar.
  */
-class VlcEngine(private val context: Context) {
+/**
+ * @param superficieDireta o vídeo vai direto para a tela, numa SurfaceView,
+ *   com o HDR junto: sempre na TV; no celular e no tablet, só para vídeo HDR
+ *   numa tela HDR (ver [Hdr]).
+ */
+class VlcEngine(private val context: Context, private val superficieDireta: Boolean = Device.isTv(context)) {
 
     private val libVlc = Vlc.get(context)
     private val player = MediaPlayer(libVlc)
-    private val naTv = Device.isTv(context)
     private val main = Handler(Looper.getMainLooper())
 
     /**
@@ -233,7 +237,7 @@ class VlcEngine(private val context: Context) {
      */
     fun attach(layout: VLCVideoLayout) {
         videoLayout = layout
-        player.attachViews(layout, null, true, !naTv)
+        player.attachViews(layout, null, true, !superficieDireta)
     }
 
     fun detach() {
@@ -635,7 +639,7 @@ class VlcEngine(private val context: Context) {
      * quadro vem do arquivo ([quadroDoArquivo]).
      */
     suspend fun snapshot(): Bitmap? {
-        if (naTv) return quadroDoArquivo()
+        if (superficieDireta) return quadroDoArquivo()
         val layout = videoLayout ?: return null
         val textura = encontrarTextura(layout) ?: return null
         return textura.bitmap

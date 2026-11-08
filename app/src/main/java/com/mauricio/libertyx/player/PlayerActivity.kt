@@ -105,6 +105,8 @@ class PlayerActivity : Activity() {
 
     private lateinit var ui: ActivityPlayerBinding
     private lateinit var engine: VlcEngine
+    /** A superfície escolhida ao abrir: a SurfaceView do HDR, ou a TextureView de sempre. */
+    private var superficieDireta = false
     private lateinit var prefs: PlayerPreferences
     private lateinit var audio: AudioManager
     private lateinit var resume: ResumeStore
@@ -233,7 +235,9 @@ class PlayerActivity : Activity() {
         // justamente no começo, quando ele mais precisa dela.
         com.mauricio.libertyx.library.Thumbnails.pausar(true)
 
-        engine = VlcEngine(this)
+        // Vídeo HDR numa tela HDR vai direto para a tela, com o HDR junto (ver Hdr).
+        superficieDireta = isTv || (Hdr.telaMostra(this) && Hdr.ehHdr(this, atual))
+        engine = VlcEngine(this, superficieDireta)
         engine.attach(ui.videoLayout)
 
         bindControls()
@@ -2309,7 +2313,7 @@ class PlayerActivity : Activity() {
         val atraso = engine.subtitleDelay
         val mudo = engine.isMuted
         engine.teardown()
-        engine = VlcEngine(this)
+        engine = VlcEngine(this, superficieDireta)
         engine.attach(ui.videoLayout)
         bindEngine()
         engine.load(alvo, instante).onFailure {
