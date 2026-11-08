@@ -187,8 +187,19 @@ val LocalDock = staticCompositionLocalOf { false }
  */
 @Composable
 fun margensSobADock(): WindowInsets =
-    if (LocalDock.current) ScaffoldDefaults.contentWindowInsets.add(WindowInsets(bottom = 84.dp))
+    if (LocalDock.current) ScaffoldDefaults.contentWindowInsets.add(WindowInsets(bottom = if (dockBaixa()) 58.dp else 84.dp))
     else ScaffoldDefaults.contentWindowInsets
+
+/**
+ * Celular ou tablet deitado: a tela tem pouca altura, e a dock de pé (ícone
+ * sobre o nome, 68 dp) tomava um quarto dela no celular. Deitada, ela fica
+ * baixa, com o nome ao lado do ícone — largura é o que sobra.
+ */
+@Composable
+fun dockBaixa(): Boolean {
+    val tela = androidx.compose.ui.platform.LocalConfiguration.current
+    return tela.screenWidthDp > tela.screenHeightDp
+}
 
 /**
  * A dock: uma pílula flutuando sobre o fim da tela, com até cinco abas.
@@ -199,38 +210,55 @@ fun margensSobADock(): WindowInsets =
  */
 @Composable
 fun Dock(itens: List<ItemDaDock>, aba: Aba, onAba: (Aba) -> Unit, modifier: Modifier = Modifier) {
-    val forma = RoundedCornerShape(34.dp)
+    val baixa = dockBaixa()
+    val forma = RoundedCornerShape(if (baixa) 24.dp else 34.dp)
     Row(
         modifier.navigationBarsPadding()
-            .padding(start = 16.dp, end = 16.dp, bottom = 10.dp)
-            .widthIn(max = 520.dp).fillMaxWidth().height(68.dp)
+            .padding(start = 16.dp, end = 16.dp, bottom = if (baixa) 6.dp else 10.dp)
+            .widthIn(max = if (baixa) 600.dp else 520.dp).fillMaxWidth().height(if (baixa) 46.dp else 68.dp)
             .shadow(20.dp, forma, ambientColor = Color.Black, spotColor = Color.Black)
             .clip(forma)
             .background(Color(0xFF1D1D22).copy(alpha = 0.96f))
             .border(0.5.dp, LabTheme.glassBorder, forma)
-            .padding(5.dp),
+            .padding(if (baixa) 4.dp else 5.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         itens.forEach { item ->
             val ativa = item.aba == aba
             val cor = if (ativa) LabTheme.accent else LabTheme.text.copy(alpha = 0.86f)
-            Column(
-                Modifier.weight(1f).fillMaxHeight()
-                    .clip(RoundedCornerShape(29.dp))
-                    // A aba atual ganha uma pílula escura por baixo, como um
-                    // botão afundado — a cor sozinha some sob o sol.
-                    .background(if (ativa) Color.Black.copy(alpha = 0.55f) else Color.Transparent)
-                    .clickable { onAba(item.aba) },
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                IconeDaAba(item, ativa, cor, 24.dp)
-                Spacer(Modifier.height(2.dp))
+            val fundo = Modifier.weight(1f).fillMaxHeight()
+                .clip(RoundedCornerShape(if (baixa) 20.dp else 29.dp))
+                // A aba atual ganha uma pílula escura por baixo, como um
+                // botão afundado — a cor sozinha some sob o sol.
+                .background(if (ativa) Color.Black.copy(alpha = 0.55f) else Color.Transparent)
+                .clickable { onAba(item.aba) }
+            val rotulo = @Composable {
                 Text(
-                    item.rotulo, color = cor, fontSize = 11.sp, maxLines = 1,
+                    item.rotulo, color = cor, fontSize = if (baixa) 12.sp else 11.sp, maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     fontWeight = if (ativa) FontWeight.SemiBold else FontWeight.Medium,
                 )
+            }
+            if (baixa) {
+                Row(
+                    fundo.padding(horizontal = 6.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconeDaAba(item, ativa, cor, 20.dp)
+                    Spacer(Modifier.size(6.dp))
+                    rotulo()
+                }
+            } else {
+                Column(
+                    fundo,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    IconeDaAba(item, ativa, cor, 24.dp)
+                    Spacer(Modifier.height(2.dp))
+                    rotulo()
+                }
             }
         }
     }

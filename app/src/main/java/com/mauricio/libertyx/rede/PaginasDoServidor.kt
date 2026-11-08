@@ -55,6 +55,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
@@ -107,9 +112,15 @@ private fun Cabeca(servidor: ServidorDeMidia, fundoDe: String, logoDe: String?) 
     // 16:9 no celular em pé; numa tela deitada (TV, tablet) isso tomaria a
     // tela inteira e empurraria os botões para fora — lá vai até a metade.
     val tela = androidx.compose.ui.platform.LocalConfiguration.current
-    val altura = minOf(tela.screenWidthDp * 9f / 16f, tela.screenHeightDp * 0.5f).dp
-    Box(Modifier.fillMaxWidth().height(altura)) {
-        ImagemDoServidor(servidor, fundoDe, listOf("Backdrop", "Thumb", "Primary"), 1280, Modifier.fillMaxSize())
+    val cheia = tela.screenWidthDp * 9f / 16f
+    val altura = minOf(cheia, tela.screenHeightDp * 0.5f)
+    val tipos = listOf("Backdrop", "Thumb", "Primary")
+    Box(Modifier.fillMaxWidth().height(altura.dp)) {
+        if (altura >= cheia - 1f) {
+            ImagemDoServidor(servidor, fundoDe, tipos, 1280, Modifier.fillMaxSize())
+        } else {
+            FundoDeitado(servidor, fundoDe, tipos, (altura * 16f / 9f).dp)
+        }
         Box(
             Modifier.fillMaxSize().background(
                 Brush.verticalGradient(
@@ -124,6 +135,44 @@ private fun Cabeca(servidor: ServidorDeMidia, fundoDe: String, logoDe: String?) 
                     .widthIn(max = 260.dp * Escala.fator()).heightIn(max = 84.dp * Escala.fator()),
             )
         }
+    }
+}
+
+/**
+ * O fundo numa tela deitada. Esticado à largura toda e cortado na metade da
+ * altura, a imagem 16:9 perdia o alto e o pé — sobrava uma faixa do meio,
+ * ampliada. Aqui ela vai inteira, em 16:9, no centro; dos lados, a mesma
+ * imagem desfocada e escura preenche a faixa, e as bordas da do meio se
+ * dissolvem nela.
+ */
+@Composable
+private fun FundoDeitado(servidor: ServidorDeMidia, id: String, tipos: List<String>, largura: androidx.compose.ui.unit.Dp) {
+    val imagem by capaDoServidor(servidor, id, tipos, 1280)
+    val pronta = imagem
+    Box(Modifier.fillMaxSize().background(LabTheme.background), contentAlignment = Alignment.Center) {
+        if (pronta == null) return@Box
+        val bitmap = remember(pronta) { pronta.asImageBitmap() }
+        Image(
+            bitmap, null,
+            Modifier.fillMaxSize().blur(28.dp).graphicsLayer { alpha = 0.45f },
+            contentScale = ContentScale.Crop,
+        )
+        Image(
+            bitmap, null,
+            Modifier.fillMaxHeight().width(largura)
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                .drawWithContent {
+                    drawContent()
+                    drawRect(
+                        Brush.horizontalGradient(
+                            0f to Color.Transparent, 0.12f to Color.Black,
+                            0.88f to Color.Black, 1f to Color.Transparent,
+                        ),
+                        blendMode = BlendMode.DstIn,
+                    )
+                },
+            contentScale = ContentScale.Fit,
+        )
     }
 }
 

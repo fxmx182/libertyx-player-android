@@ -575,8 +575,30 @@ internal fun ImagemDoServidor(
     modifier: Modifier,
     semImagem: androidx.compose.ui.graphics.vector.ImageVector = Icons.Filled.Movie,
 ) {
+    val imagem by capaDoServidor(servidor, id, tipos, largura)
+    Box(
+        modifier.background(Brush.linearGradient(listOf(Color(0xFF232228), Color(0xFF16161A)))),
+        contentAlignment = Alignment.Center,
+    ) {
+        val pronta = imagem
+        if (pronta != null) {
+            Image(pronta.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        } else {
+            Icon(semImagem, null, tint = LabTheme.faint, modifier = Modifier.size(22.dp))
+        }
+    }
+}
+
+/** A imagem baixada (ou do cache), para quem precisa desenhá-la do seu jeito. */
+@Composable
+internal fun capaDoServidor(
+    servidor: ServidorDeMidia,
+    id: String,
+    tipos: List<String>,
+    largura: Int,
+): androidx.compose.runtime.State<Bitmap?> {
     val chave = "${servidor.contaId}/$id/${tipos.joinToString(",")}"
-    val imagem by produceState(CapasDoServidor.cache.get(chave), chave) {
+    return produceState(CapasDoServidor.cache.get(chave), chave) {
         if (value != null || chave in CapasDoServidor.falharam) return@produceState
         when (val baixada = CapasDoServidor.limite.withPermit { servidor.baixarImagem(id, tipos, largura) }) {
             is ServidorDeMidia.ImagemBaixada.Pronta -> {
@@ -588,17 +610,6 @@ internal fun ImagemDoServidor(
             // antes isso também marcava "sem imagem" até fechar o app.
             ServidorDeMidia.ImagemBaixada.NaoTem -> CapasDoServidor.falharam += chave
             ServidorDeMidia.ImagemBaixada.Falhou -> {}
-        }
-    }
-    Box(
-        modifier.background(Brush.linearGradient(listOf(Color(0xFF232228), Color(0xFF16161A)))),
-        contentAlignment = Alignment.Center,
-    ) {
-        val pronta = imagem
-        if (pronta != null) {
-            Image(pronta.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        } else {
-            Icon(semImagem, null, tint = LabTheme.faint, modifier = Modifier.size(22.dp))
         }
     }
 }
