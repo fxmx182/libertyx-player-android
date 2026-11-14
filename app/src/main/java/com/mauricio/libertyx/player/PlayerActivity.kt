@@ -1693,7 +1693,7 @@ class PlayerActivity : Activity() {
         lastMidY = midY
 
         applyZoom()
-        showHud("${(videoZoom * 100).toInt()}%", getString(R.string.ampliacao), null)
+        showHud("${(videoZoom * 100).roundToInt()}%", getString(R.string.ampliacao), null)
         cancelControlsHide()
     }
 
@@ -1712,12 +1712,12 @@ class PlayerActivity : Activity() {
     }
 
     /**
-     * Perto do tamanho original a pinça encaixa em 1×: acertar exatamente 100%
-     * com dois dedos é impossível, e ficar em 1,03× deixa a imagem tremida sem
-     * nenhum motivo.
+     * O zoom fica onde a pinça soltou. Só quando o número na tela já diz 100%
+     * ele vira 1× exato, para não sobrar 1,004× invisível. (Antes encaixava de
+     * 92% a 108% e roubava o zoom escolhido.)
      */
     private fun encaixarZoom() {
-        if (abs(videoZoom - 1f) < 0.08f) {
+        if (abs(videoZoom - 1f) < 0.005f) {
             videoZoom = 1f
             videoOffsetX = 0f
             videoOffsetY = 0f
