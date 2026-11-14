@@ -122,7 +122,6 @@ import com.mauricio.libertyx.core.VideoGroup
 import com.mauricio.libertyx.core.labCard
 import com.mauricio.libertyx.core.resumeKey
 import com.mauricio.libertyx.player.Playback
-import com.mauricio.libertyx.core.Demonstracao
 import com.mauricio.libertyx.tv.tvFocus
 import com.mauricio.libertyx.tv.rememberFocoDoCartao
 import com.mauricio.libertyx.tv.recebeFoco
@@ -793,36 +792,6 @@ private fun Vazio(onOpenServers: () -> Unit) {
         )
         Spacer(Modifier.height(24.dp))
         CartaoDaRede(onOpenServers)
-        Spacer(Modifier.height(12.dp))
-        CartaoDeDemonstracao()
-    }
-}
-
-/** O filme aberto que toca da internet, para o app não começar sem nada. */
-@Composable
-internal fun CartaoDeDemonstracao() {
-    val contexto = LocalContext.current
-    Row(
-        Modifier.fillMaxWidth().tvFocus(LabTheme.radiusCard, scale = 1.02f)
-            .clip(RoundedCornerShape(LabTheme.radiusCard)).labCard()
-            .clickable { Playback.start(contexto, Demonstracao.item, emptyList()) }
-            .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Image(
-            painterResource(R.drawable.demo_sintel), null,
-            Modifier.width(78.dp).height(44.dp).clip(RoundedCornerShape(10.dp)),
-            contentScale = ContentScale.Crop,
-        )
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(stringResource(R.string.demonstracao_tocar), color = LabTheme.text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            Text(
-                "Sintel · " + Demonstracao.CREDITO,
-                color = LabTheme.muted, fontSize = 12.sp,
-            )
-        }
-        Icon(Icons.Filled.ChevronRight, null, tint = LabTheme.faint)
     }
 }
 

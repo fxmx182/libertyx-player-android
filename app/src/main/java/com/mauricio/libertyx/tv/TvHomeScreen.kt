@@ -59,12 +59,9 @@ import com.mauricio.libertyx.core.Historico
 import com.mauricio.libertyx.library.rememberVoltaAoApp
 import com.mauricio.libertyx.rede.AtalhoDeServidor
 import com.mauricio.libertyx.R
-import com.mauricio.libertyx.BuildConfig
 import com.mauricio.libertyx.library.MenuDoItem
 import com.mauricio.libertyx.library.OpcaoDoMenu
 import androidx.compose.ui.res.stringResource
-import com.mauricio.libertyx.core.Demonstracao
-import androidx.compose.ui.res.painterResource
 
 /**
  * A tela inicial na televisão.
@@ -139,17 +136,6 @@ fun TvHomeScreen(onOpenServers: () -> Unit, onAtalho: (AtalhoDeServidor) -> Unit
             }
             if (locais.isEmpty()) {
                 item { Vazio() }
-                if (BuildConfig.DEMONSTRACAO) item {
-                    Faixa(stringResource(R.string.demonstracao)) {
-                        item {
-                            CartaoVideo(
-                                item = Demonstracao.item,
-                                capa = R.drawable.demo_sintel,
-                                legenda = Demonstracao.CREDITO,
-                            ) { Playback.start(contexto, Demonstracao.item, emptyList()) }
-                        }
-                    }
-                }
             }
         }
 
@@ -189,8 +175,6 @@ private val CARD_H = 130.dp
 private fun CartaoVideo(
     item: MediaItem,
     modifier: Modifier = Modifier,
-    capa: Int? = null,
-    legenda: String? = null,
     volta: Int = 0,
     onRemover: (() -> Unit)? = null,
     onClick: () -> Unit,
@@ -217,14 +201,7 @@ private fun CartaoVideo(
             contentAlignment = Alignment.Center,
         ) {
             val pronta = imagem
-            if (capa != null) {
-                Image(
-                    painter = painterResource(capa),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                )
-            } else if (pronta != null) {
+            if (pronta != null) {
                 Image(
                     bitmap = pronta.asImageBitmap(),
                     contentDescription = null,
@@ -263,7 +240,7 @@ private fun CartaoVideo(
             ResumeStore.get(contexto).position(item.origin.resumeKey)
         }
         Text(
-            if (retomada != null) stringResource(R.string.parou_em, TimeFormat.clock(retomada)) else legenda ?: " ",
+            if (retomada != null) stringResource(R.string.parou_em, TimeFormat.clock(retomada)) else " ",
             color = if (retomada != null) LabTheme.accent else LabTheme.muted,
             fontSize = 12.sp,
             maxLines = 1,
@@ -333,9 +310,8 @@ private fun Vazio() {
     Column(Modifier.fillMaxWidth().padding(horizontal = OVERSCAN_H, vertical = 20.dp)) {
         Text(stringResource(R.string.tv_sem_videos), color = LabTheme.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(6.dp))
-        val explica = stringResource(R.string.tv_sem_videos_explica)
         Text(
-            if (BuildConfig.DEMONSTRACAO) explica + " " + stringResource(R.string.tv_experimente_demo) else explica,
+            stringResource(R.string.tv_sem_videos_explica),
             color = LabTheme.muted,
             fontSize = 14.sp,
         )
