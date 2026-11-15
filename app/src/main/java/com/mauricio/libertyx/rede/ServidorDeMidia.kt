@@ -247,7 +247,7 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
 
     /** O arquivo original, sem conversão (`static=true`). */
     fun urlDoVideo(id: String): Uri? =
-        url("/Videos/$id/stream", listOf("static" to "true", "MediaSourceId" to id) + chaveNaConsulta)
+        url("/Videos/$id/stream", listOf("static" to "true") + fonteNaConsulta(id) + chaveNaConsulta)
 
     /**
      * Imagem do item: `Thumb` e `Backdrop` são deitadas, como as capas do app;
@@ -494,8 +494,9 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
             kbps >= 2_000 -> 960
             else -> 640
         }
-        val consulta = mutableListOf(
-            "MediaSourceId" to id, "DeviceId" to idDoAparelho, "PlaySessionId" to sessao,
+        val consulta = fonteNaConsulta(id).toMutableList()
+        consulta += listOf(
+            "DeviceId" to idDoAparelho, "PlaySessionId" to sessao,
             "VideoCodec" to "h264", "AudioCodec" to "aac",
             "VideoBitrate" to "${maxOf(300_000, kbps * 1000 - 192_000)}", "AudioBitrate" to "192000",
             "MaxAudioChannels" to "2", "TranscodingMaxAudioChannels" to "2", "MaxWidth" to "$largura",
@@ -595,6 +596,14 @@ class ServidorDeMidia(private val conta: ContaDeRede, private val token: String?
     val contaId: String get() = conta.id
 
     private val usuarioId: String get() = conta.idNoServidor.orEmpty()
+
+    /**
+     * A fonte do vídeo. No Jellyfin o id da fonte é o do item (e a conversão
+     * exige o parâmetro); no Emby é outro (`mediasource_…`) e o id do item ali
+     * dá 400 — sem o parâmetro, o Emby usa a primeira fonte.
+     */
+    private fun fonteNaConsulta(id: String): List<Pair<String, String>> =
+        if (conta.tipo == ContaDeRede.Tipo.EMBY) emptyList() else listOf("MediaSourceId" to id)
 
     /** O Jellyfin novo lê `ApiKey`; o Emby, `api_key`. Os dois servem aos dois. */
     private val chaveNaConsulta: List<Pair<String, String>>
