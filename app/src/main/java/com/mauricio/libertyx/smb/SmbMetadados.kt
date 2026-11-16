@@ -1,6 +1,7 @@
 package com.mauricio.libertyx.smb
 
 import android.util.Log
+import com.mauricio.libertyx.player.LeitorDeTrechos
 import com.hierynomus.msdtyp.AccessMask
 import com.hierynomus.mssmb2.SMB2CreateDisposition
 import com.hierynomus.mssmb2.SMB2Dialect
@@ -117,6 +118,61 @@ object SmbMetadados {
             Log.w(TAG, "legendas ao lado indisponíveis em ${server.displayHost}/$share: $e")
             emptyList()
         }
+    }
+
+    /**
+     * Um arquivo do servidor aberto para ler trechos soltos, com a conexão
+     * mantida até [LeitorDeTrechos.close] — o [IndiceDeTs] lê o começo, o fim
+     * e alguns pontos do meio de uma gravação em MPEG-TS. Bloqueia; lança se
+     * não conseguir abrir.
+     */
+    fun leitor(server: SmbServer, senha: String?, share: String, caminho: String): LeitorDeTrechos {
+        val tentativas: List<Pair<SMBClient, AuthenticationContext>> =
+            if (!server.isGuest && server.username.isNotBlank()) {
+                listOf(cliente to AuthenticationContext(server.username, (senha ?: "").toCharArray(), "WORKGROUP"))
+            } else {
+                listOf(
+                    cliente to AuthenticationContext.guest(),
+                    clienteSemSmb3 to AuthenticationContext.guest(),
+                    clienteSemSmb3 to AuthenticationContext.anonymous(),
+                )
+            }
+        var erro: Throwable? = null
+        for ((cli, conta) in tentativas) {
+            val conexao = try { cli.connect(server.host, server.port) } catch (e: Throwable) { erro = e; continue }
+            try {
+                val sessao = conexao.authenticate(conta)
+                val disco = sessao.connectShare(share) as DiskShare
+                val arquivo = disco.openFile(
+                    caminho.trimStart('/').replace('/', '\\'), setOf(AccessMask.GENERIC_READ), null,
+                    SMB2ShareAccess.ALL, SMB2CreateDisposition.FILE_OPEN, null,
+                )
+                val tamanho = arquivo.fileInformation.standardInformation.endOfFile
+                return object : LeitorDeTrechos {
+                    override val tamanho = tamanho
+                    override fun ler(posicao: Long, quantos: Int): ByteArray {
+                        val buf = ByteArray(quantos)
+                        var lidos = 0
+                        while (lidos < quantos) {
+                            val n = arquivo.read(buf, posicao + lidos, lidos, quantos - lidos)
+                            if (n <= 0) break
+                            lidos += n
+                        }
+                        return if (lidos == quantos) buf else buf.copyOf(lidos)
+                    }
+                    override fun close() {
+                        runCatching { arquivo.close() }
+                        runCatching { disco.close() }
+                        runCatching { sessao.close() }
+                        runCatching { conexao.close(true) }
+                    }
+                }
+            } catch (e: Throwable) {
+                erro = e
+                runCatching { conexao.close(true) }
+            }
+        }
+        throw erro ?: java.io.IOException("SMB")
     }
 
     /** Abre o compartilhamento com a conta certa e entrega o disco a [trabalho]. */

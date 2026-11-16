@@ -6,6 +6,9 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
+import com.mauricio.libertyx.smb.SmbMetadados
+import java.util.concurrent.Executors
 import android.os.ParcelFileDescriptor
 import android.view.TextureView
 import android.view.ViewGroup
@@ -40,6 +43,8 @@ sealed interface PlaybackState {
     data object Ended : PlaybackState
     data class Failed(val message: String) : PlaybackState
 }
+
+private const val TAG = "LibertyX"
 
 /** Uma faixa selecionável dentro do arquivo. */
 data class MediaTrack(val id: Int, val label: String)
@@ -181,10 +186,123 @@ class VlcEngine(private val context: Context, private val superficieDireta: Bool
 
     /** Toda ida a um ponto passa por aqui, para o destino ficar registrado. */
     private fun irPara(alvo: Double, precise: Boolean) {
-        player.setTime((alvo * 1000).toLong(), !precise)
+        pedirAoVlc(alvo, precise)
         alvoPendente = Alvo(alvo, SystemClock.uptimeMillis(), 0)
     }
-    val duration: Double get() = player.length.takeIf { it > 0 }?.let { it / 1000.0 } ?: 0.0
+
+    /**
+     * O pedido de busca ao VLC. Numa gravação em MPEG-TS pela rede vai como
+     * posição do arquivo, achada pelo [IndiceDeTs]: a busca por tempo do VLC
+     * falha nessa fonte. Só a busca mais recente é atendida.
+     */
+    private fun pedirAoVlc(alvo: Double, precise: Boolean) {
+        val indice = indiceTs
+        if (indice == null) {
+            player.setTime((alvo * 1000).toLong(), !precise)
+            return
+        }
+        val minha = ++buscaTs
+        noIndice {
+            if (minha != buscaTs) return@noIndice
+            val fracao = runCatching { indice.fracaoDe(alvo) }
+                .onFailure { Log.w(TAG, "busca no TS: $it") }
+                .getOrNull() ?: return@noIndice
+            main.post { if (minha == buscaTs && indiceTs === indice) player.setPosition(fracao, false) }
+        }
+    }
+
+    // MARK: - Gravação em MPEG-TS pela rede
+
+    /**
+     * O índice da gravação em MPEG-TS que está tocando pela rede (ver
+     * [IndiceDeTs]); `null` para qualquer outro formato.
+     */
+    private var indiceTs: IndiceDeTs? = null
+
+    /**
+     * Enquanto o começo do arquivo não chega para dizer se é TS. Até lá a
+     * duração é 0: a que o VLC dá a um TS pela rede é o tempo já tocado, e
+     * a retomada ou uma busca feitas com ela iriam parar no lugar errado.
+     */
+    private var medindoTs = false
+
+    /** Onde começar, se o arquivo for TS: a opção `:start-time` falha nele. */
+    private var inicioDoTs: Double? = null
+    private var geracaoDoTs = 0
+    @Volatile private var buscaTs = 0
+
+    /** Leitura de rede fora da tela, uma coisa de cada vez, na ordem pedida. */
+    private val filaDoTs = Executors.newSingleThreadExecutor()
+
+    private fun noIndice(trabalho: () -> Unit) {
+        runCatching { filaDoTs.execute(trabalho) }
+    }
+
+    private fun fecharIndiceTs() {
+        geracaoDoTs++
+        indiceTs?.let { velho -> noIndice { velho.close() } }
+        indiceTs = null
+        medindoTs = false
+        inicioDoTs = null
+    }
+
+    /**
+     * Lê o começo do arquivo e, se for MPEG-TS, monta o índice. Vale para o
+     * arquivo inteiro como o servidor o guarda (SMB, WebDAV, o vídeo original
+     * do Jellyfin ou Emby, link direto); a conversão do servidor e o local
+     * ficam com o VLC.
+     */
+    private fun medirTs(origem: MediaOrigin, tocada: Uri?, inicio: Double?) {
+        fecharIndiceTs()
+        val abrir: () -> LeitorDeTrechos = when (origem) {
+            is MediaOrigin.Smb -> {
+                val loja = SmbServerStore.get(context)
+                val servidor = loja.byId(origem.serverId) ?: return
+                val senha = loja.password(servidor);
+                { SmbMetadados.leitor(servidor, senha, origem.share, origem.path) }
+            }
+            is MediaOrigin.WebDav, is MediaOrigin.Midia -> {
+                val arquivo = ContasDeRede.uriDeReproducao(context, origem)
+                if (arquivo == null || tocada != arquivo) return
+                { LeitorHttp(arquivo) }
+            }
+            is MediaOrigin.Remote -> {
+                if (origem.uri.scheme != "http" && origem.uri.scheme != "https") return
+                { LeitorHttp(origem.uri) }
+            }
+            is MediaOrigin.Local -> return
+        }
+        val minha = geracaoDoTs
+        medindoTs = true
+        inicioDoTs = inicio
+        noIndice {
+            var leitor: LeitorDeTrechos? = null
+            val indice = try {
+                leitor = abrir()
+                IndiceDeTs.abrir(leitor)
+            } catch (e: Throwable) {
+                Log.w(TAG, "não deu para ler o começo do arquivo: $e")
+                null
+            }
+            if (indice == null) runCatching { leitor?.close() }
+            else Log.i(TAG, "MPEG-TS pela rede: %.1f s".format(java.util.Locale.ROOT, indice.duracao))
+            main.post {
+                if (minha != geracaoDoTs) {
+                    indice?.let { noIndice { it.close() } }
+                    return@post
+                }
+                medindoTs = false
+                indiceTs = indice
+                val ini = inicioDoTs
+                inicioDoTs = null
+                if (indice != null && ini != null && ini > 0 && abs(tempoDoVlc - ini) > 5) irPara(ini, true)
+            }
+        }
+    }
+
+    val duration: Double
+        get() = indiceTs?.duracao
+            ?: if (medindoTs) 0.0 else player.length.takeIf { it > 0 }?.let { it / 1000.0 } ?: 0.0
     val isSeekable: Boolean get() = player.isSeekable
 
     var rate: Float
@@ -267,6 +385,7 @@ class VlcEngine(private val context: Context, private val superficieDireta: Bool
         runCatching { if (player.isPlaying) player.stop() }
         closeDescriptor()
 
+        var tocada: Uri? = null
         val media = when (val origem = item.origin) {
             is MediaOrigin.Local -> mediaForLocal(origem.uri)
             is MediaOrigin.Remote -> Media(libVlc, origem.uri)
@@ -282,8 +401,8 @@ class VlcEngine(private val context: Context, private val superficieDireta: Bool
                 }
             }
             is MediaOrigin.WebDav, is MediaOrigin.Midia ->
-                Media(libVlc, ContasDeRede.uriParaTocar(context, origem)
-                    ?: error(Textos.get(R.string.erro_servidor_sumiu)))
+                Media(libVlc, (ContasDeRede.uriParaTocar(context, origem)
+                    ?: error(Textos.get(R.string.erro_servidor_sumiu))).also { tocada = it })
         }
 
         // Outro vídeo: a escolha de legenda do anterior não vale para ele. O
@@ -301,6 +420,7 @@ class VlcEngine(private val context: Context, private val superficieDireta: Bool
         configureBuffer(media, item.origin)
         tamanhoDoArquivo = item.fileSize
         bytesNaBusca = null
+        medirTs(item.origin, tocada, inicio)
         player.media = media
         media.release()
         state = PlaybackState.Ready
@@ -516,7 +636,7 @@ class VlcEngine(private val context: Context, private val superficieDireta: Bool
         if (duration <= 0 || agora <= 0 || !player.isSeekable) return
         // `false` é o `fast` do VLC: busca exata, para voltar ao mesmo quadro
         // em vez de recuar até o keyframe anterior.
-        player.setTime(agora, false)
+        pedirAoVlc(agora / 1000.0, true)
         marcarBusca(agora / 1000.0)
     }
 
@@ -711,6 +831,8 @@ class VlcEngine(private val context: Context, private val superficieDireta: Bool
         onStateChange = null
         onTimeUpdate = null
         runCatching { player.setEventListener(null) }
+        fecharIndiceTs()
+        noIndice { filaDoTs.shutdown() }
         runCatching { player.stop() }
         runCatching { player.detachViews() }
         runCatching { player.release() }
@@ -765,7 +887,7 @@ class VlcEngine(private val context: Context, private val superficieDireta: Bool
                         val prazo = if (naRede) 2_500L else 1_200L
                         if (SystemClock.uptimeMillis() - pendente.desde > prazo) {
                             if (pendente.tentativas == 0) {
-                                player.setTime((pendente.tempo * 1000).toLong(), false)
+                                pedirAoVlc(pendente.tempo, true)
                                 alvoPendente = pendente.copy(
                                     desde = SystemClock.uptimeMillis(), tentativas = 1,
                                 )
