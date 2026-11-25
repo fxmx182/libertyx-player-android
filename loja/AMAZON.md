@@ -73,6 +73,11 @@ sem ela o build para.
 - **2026-11-14: o Sintel saiu** (pedido do dono, nos três Players). Sem ele, a Fire TV vazia do revisor não tem vídeo próprio: as instruções agora mandam usar o **servidor público de demonstração do Jellyfin** (`https://demo.jellyfin.org/stable`, usuário `demo`, senha vazia — testado no emulador viper-tv com o APK da Amazon: entrou e tocou). Risco baixo: segundo o dono, o Sintel nem tocava (dava erro ao abrir) e as atualizações passaram assim mesmo.
 
 - **2026-11-14 (pausado):** versão nova criada no console (Upcoming Version) com as notas "sem o vídeo de demonstração" nos 4 idiomas, salvas. **Falta:** o dono trocar APK1 por `dist/amazon/LibertyXPlayer-FireTV.apk` (4570432) e APK2 por `LibertyXPlayer-FireTablet.apk` (4570431) com Replace; depois conferir os aparelhos (Fire TV no APK1, só tablets no APK2), atualizar as instruções do revisor (texto abaixo, com o Jellyfin de demonstração) e enviar. Play do Player: ainda nada.
+- **2026-11-25: APKs novos para a versão pausada:** `dist/amazon/LibertyXPlayer-FireTV.apk`
+  (4728632) e `LibertyXPlayer-FireTablet.apk` (4728631), commit b752489 — além de tudo da
+  4570432/4570431, trazem "Rate LibertyX" nos Ajustes (abre a página da Amazon pelo
+  `amzn://`), Emby de novo, gravações MPEG-TS com busca e zoom que fica. Usar estes no
+  lugar dos de 14/11 e acrescentar essas linhas às novidades nos 4 idiomas.
 
 Instruções para o revisor (o campo estava **vazio** no console ao reabrir em 25/10 — o texto de 20/10 talvez nunca tenha sido salvo; agora salvo e conferido):
 
