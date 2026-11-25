@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.WorkspacePremium
 import androidx.compose.material3.HorizontalDivider
@@ -65,6 +66,7 @@ import androidx.compose.ui.unit.sp
 import com.mauricio.libertyx.BuildConfig
 import com.mauricio.libertyx.R
 import com.mauricio.libertyx.core.LabTheme
+import com.mauricio.libertyx.core.Loja
 import com.mauricio.libertyx.core.PlayerPreferences
 import com.mauricio.libertyx.core.Pro
 import com.mauricio.libertyx.core.labCard
@@ -133,6 +135,9 @@ fun AjustesScreen(onServidores: () -> Unit, onWebDav: () -> Unit, onGuia: (() ->
             }
             item {
                 Grupo(stringResource(R.string.fale_com_a_gente)) {
+                    Linha(Icons.Outlined.StarOutline, stringResource(R.string.avaliar_app), externo = true) {
+                        avaliar(contexto)
+                    }
                     Linha(Icons.Outlined.Share, stringResource(R.string.compartilhar_app), externo = true) {
                         compartilhar(contexto)
                     }
@@ -284,6 +289,22 @@ private fun OpcoesDeReproducao() {
 private fun velocidadeEmTexto(valor: Float): String =
     if (valor % 1f == 0f) "${valor.toInt()}×"
     else String.format(java.util.Locale.getDefault(), "%.1f×", valor)
+
+/**
+ * A página do app na loja de onde ele veio (Play, ou Amazon na Fire TV), onde
+ * fica o botão de dar nota: o app da loja primeiro, depois o site.
+ */
+private fun avaliar(contexto: Context) {
+    val abriu = Loja.paginaDoApp(contexto.packageName).any { endereco ->
+        try {
+            contexto.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(endereco)))
+            true
+        } catch (_: ActivityNotFoundException) {
+            false
+        }
+    }
+    if (!abriu) Toast.makeText(contexto, R.string.sem_loja, Toast.LENGTH_LONG).show()
+}
 
 private fun compartilhar(contexto: Context) {
     val envio = Intent(Intent.ACTION_SEND).apply {

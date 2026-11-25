@@ -340,6 +340,8 @@
     <string name="perguntar">Ask</string>
     <string name="retomar_direto">Resume right away</string>
     <string name="fale_com_a_gente">Talk to us</string>
+    <string name="avaliar_app">Rate LibertyX</string>
+    <string name="sem_loja">No app store on this device.</string>
     <string name="compartilhar_app">Share LibertyX</string>
     <string name="compartilhar_texto">LibertyX Player plays any video, from your phone or straight from your home server: %1$s</string>
     <string name="seguir_no_x">Follow us on X</string>

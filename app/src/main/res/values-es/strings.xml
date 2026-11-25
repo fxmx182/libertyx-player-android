@@ -339,6 +339,8 @@
     <string name="perguntar">Preguntar</string>
     <string name="retomar_direto">Reanudar directamente</string>
     <string name="fale_com_a_gente">Habla con nosotros</string>
+    <string name="avaliar_app">Valorar LibertyX</string>
+    <string name="sem_loja">No hay tienda de apps en este dispositivo.</string>
     <string name="compartilhar_app">Compartir LibertyX</string>
     <string name="compartilhar_texto">LibertyX Player reproduce cualquier video, del móvil o directo del servidor de casa: %1$s</string>
     <string name="seguir_no_x">Síguenos en X</string>
