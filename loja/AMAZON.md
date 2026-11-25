@@ -78,6 +78,11 @@ sem ela o build para.
   4570432/4570431, trazem "Rate LibertyX" nos Ajustes (abre a página da Amazon pelo
   `amzn://`), Emby de novo, gravações MPEG-TS com busca e zoom que fica. Usar estes no
   lugar dos de 14/11 e acrescentar essas linhas às novidades nos 4 idiomas.
+- **Enviado em 2026-11-25** (25/11 01:21 PST, com o OK do dono): APK1 FireTV 4728632 +
+  APK2 FireTablet 4728631 (o dono trocou pelo Replace), novidades nos 4 idiomas, instruções
+  do revisor com o Jellyfin de demonstração (e o "Rate LibertyX"), 100% (rollout parcial só
+  com 10 mil usuários). Aparelhos: 97 Fire TV / 12 tablets. Previsão: 30/11/2026 01:30 PST.
+  O console agora é por "Release Tracks" (Fire OS / Vega OS).
 
 Instruções para o revisor (o campo estava **vazio** no console ao reabrir em 25/10 — o texto de 20/10 talvez nunca tenha sido salvo; agora salvo e conferido):
 
