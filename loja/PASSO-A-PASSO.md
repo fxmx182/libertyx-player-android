@@ -139,3 +139,13 @@ faixa de Android TV.
   e o Pro à venda. Quem instala por lá é mandado à Play para comprar.
 - Assinaturas diferentes: o app da Play não instala por cima de um APK do GitHub
   ou da pasta. Para trocar, desinstale antes.
+
+## Histórico da produção
+
+- **2026-11-25: pedido de acesso à produção enviado (18:01).** Antes, a versão
+  "0.1.0 (66cdac5) — Avaliar, Emby, gravações TS" (celular 4728451 + TV 4728452,
+  notas em pt-BR/en-US/es-419) foi enviada para revisão na faixa "Teste fechado -
+  LibertyX". Respostas do formulário: as de `PRODUCAO.md`, encurtadas para o
+  limite de 300 caracteres; recrutamento pela Testers Community + testes próprios;
+  facilidade "nem difícil nem fácil"; instalações 0–10 mil. Resposta do Google por
+  e-mail em até ~7 dias. Se recusar, são mais 14 dias de teste fechado (como o Folder).
