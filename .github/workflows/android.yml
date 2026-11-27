@@ -172,6 +172,25 @@ jobs:
             --notes-file notas.md \
             --latest
 
+      # Zapstore (loja de apps sobre Nostr): publica o APK deste release.
+      # Assina com a chave DELEGADA (secret ZAPSTORE_SIGN_WITH), nunca com a do dono.
+      # So funciona depois do registro inicial feito a mao (zsp com o keystore, que
+      # nomeia essa chave como delegada). Sem o secret, ou se a Zapstore recusar,
+      # o passo avisa e o build segue verde.
+      - name: Publicar na Zapstore
+        if: github.ref == 'refs/heads/main'
+        continue-on-error: true
+        env:
+          SIGN_WITH: ${{ secrets.ZAPSTORE_SIGN_WITH }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SIGN_WITH:-}" ]; then echo "sem ZAPSTORE_SIGN_WITH: pulando a Zapstore"; exit 0; fi
+          curl -fsSL -o zsp https://github.com/zapstore/zsp/releases/download/v2.0.1/zsp-2.0.1-linux-amd64
+          echo "1ef5373f8ecd9ba63d2c3fab98abb0d31b2244a2aac31b3749fb205c7d5f5b38  zsp" | sha256sum -c -
+          chmod +x zsp
+          ./zsp publish -q --json | tee zapstore.json
+
       # O histórico é útil; guardá-lo inteiro não é. Cada build são 300 MB, e
       # ninguém volta trinta versões — dez cobre "a de ontem quebrou, me devolve
       # a de anteontem", que é para o que serve.

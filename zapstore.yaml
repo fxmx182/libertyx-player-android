@@ -1,0 +1,45 @@
+# Zapstore (loja de apps sobre Nostr). Lido pelo `zsp publish` na CI.
+# Um app por pacote: aqui vai so o APK de celular (arm64). O de TV tem o mesmo
+# pacote e exige leanback, entao continua so no GitHub (Downloader/adb).
+repository: https://github.com/fxmx182/libertyx-player-android
+release_source: https://github.com/fxmx182/libertyx-player-android
+release_filter: '^v[0-9]'
+match: '^LibertyXPlayer-Celular\.apk$'
+
+name: LibertyX Player
+summary: Plays MKV, HEVC and 4K from your phone, PC, NAS, Jellyfin and Emby, with subtitles.
+description: |
+  The video player for people with a real collection.
+
+  LibertyX opens practically any file (MKV, MP4, AVI, HEVC/H.265, 4K and HDR, AC-3 and DTS audio,
+  SRT, ASS and PGS subtitles) without converting anything, and plays straight from your PC, NAS or
+  Jellyfin/Emby server without copying files to the phone.
+
+  **Your home servers**
+  - SMB (Windows, macOS, Linux, Samba, NAS), found automatically on your network
+  - Jellyfin and Emby: continue watching, next up, series and collections, progress synced with the server
+  - WebDAV and Nextcloud
+
+  **Made for watching**
+  - Frame-by-frame seeking that follows your finger
+  - Familiar gestures: double tap to skip, swipe for brightness and volume
+  - Subtitles and audio tracks from the file or the folder
+  - Android Auto support
+
+  No ads, no tracking. Available in English, Portuguese and Spanish.
+  Pro features are unlocked with a one-time LibertyX key, paid in Bitcoin or USDT
+  through the Telegram bot @libertx_partition_bot.
+
+  Screenshots use Blender Foundation films (CC-BY): Sintel, Tears of Steel, Elephants Dream,
+  Big Buck Bunny and Caminandes.
+website: https://fxmx182.github.io
+tags: [video, player, media, jellyfin, emby, smb, nas]
+
+icon: ./Scripts/play-512.png
+images:
+  - ./loja/imagens/celular-en-1-biblioteca.jpg
+  - ./loja/imagens/celular-en-2-pasta.jpg
+  - ./loja/imagens/celular-en-3-player.jpg
+  - ./loja/imagens/celular-en-4-ferramentas.jpg
+  - ./loja/imagens/celular-en-6-guia.jpg
+metadata_sources: []
